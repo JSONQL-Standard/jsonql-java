@@ -1,0 +1,15 @@
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/JSONQLParser.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/SQLTranspiler.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/cache/CacheProvider.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/cache/InMemoryCacheProvider.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/dialect/GenericDialect.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/dialect/MySQLDialect.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/dialect/PostgresDialect.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/dialect/SQLDialect.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/dialect/SQLiteDialect.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/hydrator/ResultHydrator.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/schema/JSONQLFieldSchema.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/schema/JSONQLRelation.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/schema/JSONQLSchema.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/schema/JSONQLTableSchema.java
+/Users/rlok/Documents/GitHub/jsonql-java/src/main/java/org/jsonql/validator/JSONQLValidator.java

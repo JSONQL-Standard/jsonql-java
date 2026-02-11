@@ -1,16 +1,17 @@
 package org.jsonql.validator;
 
-import org.jsonql.schema.JSONQLSchema;
-import org.jsonql.schema.JSONQLTableSchema;
-import org.jsonql.schema.JSONQLFieldSchema;
-import org.jsonql.schema.JSONQLRelation;
+import org.jsonql.JsonQLValidationException;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.jsonql.schema.JsonQLFieldSchema;
+import org.jsonql.schema.JsonQLRelation;
 
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
 
-public class JSONQLValidator {
-    private final JSONQLSchema schema;
+public class JsonQLValidator {
+    private final JsonQLSchema schema;
     private final String tableName;
 
     public static class ValidationResult {
@@ -32,14 +33,14 @@ public class JSONQLValidator {
         }
     }
 
-    public JSONQLValidator(JSONQLSchema schema, String tableName) {
+    public JsonQLValidator(JsonQLSchema schema, String tableName) {
         this.schema = schema;
         this.tableName = tableName;
     }
 
     public ValidationResult validate(Map<String, Object> query) {
         ValidationResult result = new ValidationResult(true);
-        JSONQLTableSchema tableSchema = schema.tables.get(tableName);
+        JsonQLTableSchema tableSchema = schema.tables.get(tableName);
 
         if (tableSchema == null) {
             // If table is not in schema, we assume it's allowed (no restrictions defined)
@@ -131,7 +132,22 @@ public class JSONQLValidator {
         return result;
     }
 
-    private void validateWhere(Map<?, ?> where, JSONQLTableSchema tableSchema, ValidationResult result) {
+    /**
+     * Validate and throw on the first error encountered (fail-fast).
+     *
+     * @throws JsonQLValidationException if the query is invalid
+     */
+    public void validateOrThrow(Map<String, Object> query) {
+        ValidationResult result = validate(query);
+        if (!result.valid && !result.errors.isEmpty()) {
+            throw new JsonQLValidationException(
+                result.errors.get(0).message,
+                result.errors
+            );
+        }
+    }
+
+    private void validateWhere(Map<?, ?> where, JsonQLTableSchema tableSchema, ValidationResult result) {
         for (Map.Entry<?, ?> entry : where.entrySet()) {
             String key = entry.getKey().toString();
             if (key.equals("and") || key.equals("or")) {
@@ -149,9 +165,9 @@ public class JSONQLValidator {
         }
     }
 
-    private boolean validateField(String fieldName, String checkType, JSONQLTableSchema tableSchema, ValidationResult result) {
+    private boolean validateField(String fieldName, String checkType, JsonQLTableSchema tableSchema, ValidationResult result) {
         if (tableSchema.fields == null) return true;
-        JSONQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
+        JsonQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
             // Check if it's a nested field or just unknown
             // For simplicity, we'll assume unknown fields are not allowed if strict schema
@@ -215,16 +231,16 @@ public class JSONQLValidator {
         return true;
     }
 
-    private boolean checkAggregatePermission(JSONQLFieldSchema field, Boolean specificPermission) {
+    private boolean checkAggregatePermission(JsonQLFieldSchema field, Boolean specificPermission) {
         if (specificPermission != null) {
             return specificPermission;
         }
         return field.allowAggregate != null ? field.allowAggregate : true;
     }
 
-    private boolean validateRelation(String relationName, JSONQLTableSchema tableSchema, ValidationResult result) {
+    private boolean validateRelation(String relationName, JsonQLTableSchema tableSchema, ValidationResult result) {
         if (tableSchema.relations == null) return true;
-        JSONQLRelation relation = tableSchema.relations.get(relationName);
+        JsonQLRelation relation = tableSchema.relations.get(relationName);
         if (relation == null) {
              // Unknown relation
              return true;

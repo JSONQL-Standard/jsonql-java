@@ -2,9 +2,9 @@ package org.jsonql;
 
 import org.jsonql.dialect.SQLDialect;
 import org.jsonql.dialect.PostgresDialect;
-import org.jsonql.schema.JSONQLSchema;
-import org.jsonql.schema.JSONQLTableSchema;
-import org.jsonql.schema.JSONQLRelation;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.jsonql.schema.JsonQLRelation;
 
 import java.util.Map;
 import java.util.List;
@@ -42,7 +42,7 @@ public class SQLTranspiler {
         return transpile(query, tableName, null);
     }
 
-    public TranspilationResult transpile(Map<String, Object> query, String tableName, JSONQLSchema schema) {
+    public TranspilationResult transpile(Map<String, Object> query, String tableName, JsonQLSchema schema) {
         if (!isValidIdentifier(tableName)) {
             throw new IllegalArgumentException("Invalid table name: " + tableName);
         }
@@ -464,15 +464,15 @@ public class SQLTranspiler {
         return true;
     }
 
-    private void processIncludes(Map<?,?> includes, String parentTable, JSONQLSchema schema, List<String> selectParts, List<String> joinParts, List<Object> parameters) {
-        JSONQLTableSchema parentSchema = schema.tables.get(parentTable);
+    private void processIncludes(Map<?,?> includes, String parentTable, JsonQLSchema schema, List<String> selectParts, List<String> joinParts, List<Object> parameters) {
+        JsonQLTableSchema parentSchema = schema.tables.get(parentTable);
         if (parentSchema == null) throw new IllegalArgumentException("Table schema not found for: " + parentTable);
 
         for (Map.Entry<?,?> entry : includes.entrySet()) {
             String relationName = entry.getKey().toString();
             Map<String, Object> relQuery = (Map<String, Object>) entry.getValue();
 
-            JSONQLRelation relation = parentSchema.relations.get(relationName);
+            JsonQLRelation relation = parentSchema.relations.get(relationName);
             if (relation == null) throw new IllegalArgumentException("Relation not found: " + relationName + " in table " + parentTable);
 
             String targetTable = relation.target;

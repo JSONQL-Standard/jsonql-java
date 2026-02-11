@@ -3,10 +3,10 @@ package org.jsonql;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.jsonql.schema.JSONQLSchema;
-import org.jsonql.schema.JSONQLTableSchema;
-import org.jsonql.schema.JSONQLFieldSchema;
-import org.jsonql.schema.JSONQLRelation;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.jsonql.schema.JsonQLFieldSchema;
+import org.jsonql.schema.JsonQLRelation;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -98,14 +98,14 @@ public class ComplianceTest {
         for (TestCase tc : tests) {
             System.out.println("Running test: " + tc.id);
             
-            JSONQLSchema schema = null;
+            JsonQLSchema schema = null;
             if (tc.schema != null) {
                 schema = parseSchema(tc.schema);
             } else if (sharedSchemaMap != null) {
                 schema = parseSchema(sharedSchemaMap);
             }
 
-            JSONQLParser parser = new JSONQLParser(schema, tc.tableName);
+            JsonQLParser parser = new JsonQLParser(schema, tc.tableName);
             
             boolean expectValid = true;
             if (tc.valid != null) {
@@ -129,19 +129,19 @@ public class ComplianceTest {
         }
     }
 
-    private JSONQLSchema parseSchema(Map<String, Object> schemaMap) {
-        JSONQLSchema schema = new JSONQLSchema();
+    private JsonQLSchema parseSchema(Map<String, Object> schemaMap) {
+        JsonQLSchema schema = new JsonQLSchema();
         for (Map.Entry<String, Object> entry : schemaMap.entrySet()) {
             String tableName = entry.getKey();
             Map<String, Object> tableMap = (Map<String, Object>) entry.getValue();
-            JSONQLTableSchema tableSchema = new JSONQLTableSchema();
+            JsonQLTableSchema tableSchema = new JsonQLTableSchema();
             
             if (tableMap.containsKey("fields")) {
                 Map<String, Object> fieldsMap = (Map<String, Object>) tableMap.get("fields");
                 for (Map.Entry<String, Object> fieldEntry : fieldsMap.entrySet()) {
                     String fieldName = fieldEntry.getKey();
                     Map<String, Object> fieldProps = (Map<String, Object>) fieldEntry.getValue();
-                    JSONQLFieldSchema fieldSchema = new JSONQLFieldSchema((String) fieldProps.get("type"));
+                    JsonQLFieldSchema fieldSchema = new JsonQLFieldSchema((String) fieldProps.get("type"));
                     
                     if (fieldProps.containsKey("allowSelect")) fieldSchema.allowSelect = (Boolean) fieldProps.get("allowSelect");
                     if (fieldProps.containsKey("allowFilter")) fieldSchema.allowFilter = (Boolean) fieldProps.get("allowFilter");
@@ -163,7 +163,7 @@ public class ComplianceTest {
                 for (Map.Entry<String, Object> relEntry : relsMap.entrySet()) {
                     String relName = relEntry.getKey();
                     Map<String, Object> relProps = (Map<String, Object>) relEntry.getValue();
-                    JSONQLRelation relSchema = new JSONQLRelation((String) relProps.get("type"), (String) relProps.get("target"));
+                    JsonQLRelation relSchema = new JsonQLRelation((String) relProps.get("type"), (String) relProps.get("target"));
                     
                     if (relProps.containsKey("allowInclude")) relSchema.allowInclude = (Boolean) relProps.get("allowInclude");
                     

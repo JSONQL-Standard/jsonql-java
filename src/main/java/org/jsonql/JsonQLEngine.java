@@ -17,22 +17,29 @@ public class JsonQLEngine {
 
     private final SQLTranspiler transpiler;
     private final ResultHydrator hydrator;
-    private final org.jsonql.schema.JSONQLSchema schema;
+    private final org.jsonql.schema.JsonQLSchema schema;
+    private final JsonQLLogger logger;
 
     protected JsonQLEngine() {
         this.transpiler = null;
         this.hydrator = null;
         this.schema = null;
+        this.logger = JsonQLLogger.NoOpLogger.INSTANCE;
     }
 
     public JsonQLEngine(SQLTranspiler transpiler) {
         this(transpiler, null);
     }
 
-    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JSONQLSchema schema) {
+    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema) {
+        this(transpiler, schema, null);
+    }
+
+    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema, JsonQLLogger logger) {
         this.transpiler = transpiler;
         this.hydrator = new ResultHydrator();
         this.schema = schema;
+        this.logger = logger != null ? logger : JsonQLLogger.NoOpLogger.INSTANCE;
     }
 
     /** Quote an identifier (table/column name) using the engine's dialect rules. */
@@ -67,6 +74,7 @@ public class JsonQLEngine {
                             // Basic heuristic, can be improved
         
         String commandType = isMutation ? "MUTATION" : "SELECT";
+        logger.debug("Executing %s on table %s", commandType, table);
 
         // 3. Lifecycle: beforeTranspile
         if (lifecycle != null) {
@@ -100,6 +108,7 @@ public class JsonQLEngine {
         }
 
         // 5. Lifecycle: beforeExecute
+        logger.debug("SQL: %s", result.sql);
         if (lifecycle != null) {
             lifecycle.beforeExecute(result.sql, result.parameters);
         }
@@ -235,7 +244,7 @@ public class JsonQLEngine {
      * @param schema      optional schema for validation and relationships
      * @return a configured engine
      */
-    public static JsonQLEngine create(String dialectType, org.jsonql.schema.JSONQLSchema schema) {
+    public static JsonQLEngine create(String dialectType, org.jsonql.schema.JsonQLSchema schema) {
         return builder().dialect(dialectType).schema(schema).build();
     }
 
@@ -255,7 +264,8 @@ public class JsonQLEngine {
      */
     public static class Builder {
         private SQLDialect dialect;
-        private org.jsonql.schema.JSONQLSchema schema;
+        private org.jsonql.schema.JsonQLSchema schema;
+        private JsonQLLogger logger;
 
         public Builder postgres()  { this.dialect = new PostgresDialect(); return this; }
         public Builder mysql()     { this.dialect = new MySQLDialect();    return this; }
@@ -275,14 +285,19 @@ public class JsonQLEngine {
             }
         }
 
-        public Builder schema(org.jsonql.schema.JSONQLSchema schema) {
+        public Builder schema(org.jsonql.schema.JsonQLSchema schema) {
             this.schema = schema;
+            return this;
+        }
+
+        public Builder logger(JsonQLLogger logger) {
+            this.logger = logger;
             return this;
         }
 
         public JsonQLEngine build() {
             if (dialect == null) dialect = new PostgresDialect();
-            return new JsonQLEngine(new SQLTranspiler(dialect), schema);
+            return new JsonQLEngine(new SQLTranspiler(dialect), schema, logger);
         }
     }
 }

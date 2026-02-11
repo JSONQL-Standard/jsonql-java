@@ -1,34 +1,34 @@
 package org.jsonql;
 
-import org.jsonql.schema.JSONQLSchema;
-import org.jsonql.validator.JSONQLValidator;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.validator.JsonQLValidator;
 
 import java.util.Map;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 
-public class JSONQLParser {
+public class JsonQLParser {
     
-    private JSONQLSchema schema;
+    private JsonQLSchema schema;
     private String tableName;
     private JsonQLParserOptions options;
 
-    public JSONQLParser() {
+    public JsonQLParser() {
     }
 
-    public JSONQLParser(JSONQLSchema schema, String tableName) {
+    public JsonQLParser(JsonQLSchema schema, String tableName) {
         this.schema = schema;
         this.tableName = tableName;
     }
 
-    public JSONQLParser(JSONQLSchema schema, String tableName, JsonQLParserOptions options) {
+    public JsonQLParser(JsonQLSchema schema, String tableName, JsonQLParserOptions options) {
         this.schema = schema;
         this.tableName = tableName;
         this.options = options;
     }
 
-    public JSONQLParser(JsonQLParserOptions options) {
+    public JsonQLParser(JsonQLParserOptions options) {
         this.options = options;
     }
 
@@ -47,8 +47,8 @@ public class JSONQLParser {
 
         // 3. Schema & Permission Validation
         if (schema != null && tableName != null) {
-            JSONQLValidator validator = new JSONQLValidator(schema, tableName);
-            JSONQLValidator.ValidationResult result = validator.validate(query);
+            JsonQLValidator validator = new JsonQLValidator(schema, tableName);
+            JsonQLValidator.ValidationResult result = validator.validate(query);
             if (!result.valid) {
                 // For now, throw the first error
                 throw new IllegalArgumentException(result.errors.get(0).message);

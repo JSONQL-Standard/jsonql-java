@@ -2,7 +2,7 @@ package org.jsonql.schema;
 
 import java.util.Map;
 
-public class JSONQLFieldSchema {
+public class JsonQLFieldSchema {
     public String type;
     public Boolean allowSelect = true;
     public Boolean allowFilter = true;
@@ -15,13 +15,13 @@ public class JSONQLFieldSchema {
     public Boolean allowMin;
     public Boolean allowMax;
 
-    public JSONQLFieldSchema() {}
+    public JsonQLFieldSchema() {}
 
-    public JSONQLFieldSchema(String type) {
+    public JsonQLFieldSchema(String type) {
         this.type = type;
     }
 
-    public JSONQLFieldSchema(Map<String, Object> map) {
+    public JsonQLFieldSchema(Map<String, Object> map) {
         if (map.containsKey("type")) this.type = (String) map.get("type");
         if (map.containsKey("allowSelect")) this.allowSelect = (Boolean) map.get("allowSelect");
         if (map.containsKey("allowFilter")) this.allowFilter = (Boolean) map.get("allowFilter");

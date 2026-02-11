@@ -11,10 +11,10 @@ import java.util.List;
 import java.util.Map;
 
 import org.jsonql.dialect.GenericDialect;
-import org.jsonql.schema.JSONQLSchema;
-import org.jsonql.schema.JSONQLTableSchema;
-import org.jsonql.schema.JSONQLFieldSchema;
-import org.jsonql.schema.JSONQLRelation;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.jsonql.schema.JsonQLFieldSchema;
+import org.jsonql.schema.JsonQLRelation;
 
 public class TranspilationTest {
 
@@ -40,7 +40,7 @@ public class TranspilationTest {
 
             for (TranspilationTestCase tc : tests) {
                 System.out.println("Running transpilation test: " + tc.id);
-                JSONQLSchema schema = null;
+                JsonQLSchema schema = null;
                 if (tc.schema != null) {
                     schema = parseSchema(tc.schema);
                 }
@@ -58,12 +58,12 @@ public class TranspilationTest {
         }
     }
 
-    private JSONQLSchema parseSchema(Map<String, Object> schemaMap) {
-        JSONQLSchema schema = new JSONQLSchema();
+    private JsonQLSchema parseSchema(Map<String, Object> schemaMap) {
+        JsonQLSchema schema = new JsonQLSchema();
         for (Map.Entry<String, Object> entry : schemaMap.entrySet()) {
             String tableName = entry.getKey();
             Map<String, Object> tableMap = (Map<String, Object>) entry.getValue();
-            JSONQLTableSchema tableSchema = new JSONQLTableSchema();
+            JsonQLTableSchema tableSchema = new JsonQLTableSchema();
             
             if (tableMap.containsKey("fields")) {
                 Map<String, Object> fieldsMap = (Map<String, Object>) tableMap.get("fields");
@@ -71,7 +71,7 @@ public class TranspilationTest {
                     String fieldName = fieldEntry.getKey();
                     Map<String, Object> fieldProps = (Map<String, Object>) fieldEntry.getValue();
                     String type = (String) fieldProps.get("type");
-                    JSONQLFieldSchema fieldSchema = new JSONQLFieldSchema(type != null ? type : "string");
+                    JsonQLFieldSchema fieldSchema = new JsonQLFieldSchema(type != null ? type : "string");
                     tableSchema.fields.put(fieldName, fieldSchema);
                 }
             }
@@ -81,7 +81,7 @@ public class TranspilationTest {
                 for (Map.Entry<String, Object> relEntry : relsMap.entrySet()) {
                     String relName = relEntry.getKey();
                     Map<String, Object> relProps = (Map<String, Object>) relEntry.getValue();
-                    JSONQLRelation relSchema = new JSONQLRelation((String) relProps.get("type"), (String) relProps.get("target"));
+                    JsonQLRelation relSchema = new JsonQLRelation((String) relProps.get("type"), (String) relProps.get("target"));
                     if (relProps.containsKey("foreignKey")) {
                         relSchema.foreignKey = (String) relProps.get("foreignKey");
                     }

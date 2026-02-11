@@ -3,7 +3,7 @@ package org.jsonql.dialect;
 public class PostgresDialect implements SQLDialect {
     @Override
     public String getPlaceholder(int index) {
-        return "$" + index;
+        return "?";
     }
 
     @Override

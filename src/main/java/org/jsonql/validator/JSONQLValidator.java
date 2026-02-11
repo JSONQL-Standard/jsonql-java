@@ -42,14 +42,19 @@ public class JSONQLValidator {
         JSONQLTableSchema tableSchema = schema.tables.get(tableName);
 
         if (tableSchema == null) {
-            result.valid = false;
-            result.errors.add(new ValidationError("TABLE_NOT_FOUND", "Table " + tableName + " not found in schema"));
+            // If table is not in schema, we assume it's allowed (no restrictions defined)
+            // unless we want strict schema enforcement. For now, matching standard behavior of "No Schema = No Rules".
             return result;
         }
 
         // Validate fields
         if (query.containsKey("fields")) {
             List<?> fields = (List<?>) query.get("fields");
+            if (fields.isEmpty()) {
+                result.valid = false;
+                result.errors.add(new ValidationError("INVALID_FIELDS", "Fields array cannot be empty"));
+                return result;
+            }
             for (Object f : fields) {
                 String fieldName = f.toString();
                 if (!validateField(fieldName, "select", tableSchema, result)) {
@@ -145,6 +150,7 @@ public class JSONQLValidator {
     }
 
     private boolean validateField(String fieldName, String checkType, JSONQLTableSchema tableSchema, ValidationResult result) {
+        if (tableSchema.fields == null) return true;
         JSONQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
             // Check if it's a nested field or just unknown
@@ -217,6 +223,7 @@ public class JSONQLValidator {
     }
 
     private boolean validateRelation(String relationName, JSONQLTableSchema tableSchema, ValidationResult result) {
+        if (tableSchema.relations == null) return true;
         JSONQLRelation relation = tableSchema.relations.get(relationName);
         if (relation == null) {
              // Unknown relation

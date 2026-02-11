@@ -32,6 +32,32 @@ public class ResultHydrator {
 
     @SuppressWarnings("unchecked")
     private void hydrateColumn(Map<String, Object> row, String colName, Object value) {
+        // Normalize numeric types (BigDecimal -> Long/Double)
+        if (value instanceof java.math.BigDecimal) {
+            java.math.BigDecimal bd = (java.math.BigDecimal) value;
+            try {
+                if (bd.scale() <= 0 || bd.stripTrailingZeros().scale() <= 0) {
+                    value = bd.longValueExact();
+                } else {
+                    value = bd.doubleValue();
+                }
+            } catch (Exception ignored) {
+                // keep original value if normalization fails
+            }
+        }
+        // Normalize whole-number doubles/floats to long (e.g., SQLite SUM returns 15.0 instead of 15)
+        if (value instanceof Double) {
+            double d = (Double) value;
+            if (d == Math.floor(d) && !Double.isInfinite(d) && Math.abs(d) <= Long.MAX_VALUE) {
+                value = (long) d;
+            }
+        } else if (value instanceof Float) {
+            float f = (Float) value;
+            if (f == Math.floor(f) && !Float.isInfinite(f) && Math.abs(f) <= Long.MAX_VALUE) {
+                value = (long) f;
+            }
+        }
+
         if (colName.contains("__")) {
             // Handle nested property: "author__name" -> author: { name: "..." }
             String[] parts = colName.split("__", 2);

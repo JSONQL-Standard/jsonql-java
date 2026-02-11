@@ -5,11 +5,14 @@ import org.jsonql.validator.JSONQLValidator;
 
 import java.util.Map;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
 
 public class JSONQLParser {
     
     private JSONQLSchema schema;
     private String tableName;
+    private JsonQLParserOptions options;
 
     public JSONQLParser() {
     }
@@ -19,11 +22,30 @@ public class JSONQLParser {
         this.tableName = tableName;
     }
 
+    public JSONQLParser(JSONQLSchema schema, String tableName, JsonQLParserOptions options) {
+        this.schema = schema;
+        this.tableName = tableName;
+        this.options = options;
+    }
+
+    public JSONQLParser(JsonQLParserOptions options) {
+        this.options = options;
+    }
+
+    public void setOptions(JsonQLParserOptions options) {
+        this.options = options;
+    }
+
     public void parse(Map<String, Object> query) throws IllegalArgumentException {
         // 1. Basic Syntax Validation
         validateSyntax(query);
 
-        // 2. Schema & Permission Validation
+        // 2. Parser Options Enforcement
+        if (options != null) {
+            enforceOptions(query);
+        }
+
+        // 3. Schema & Permission Validation
         if (schema != null && tableName != null) {
             JSONQLValidator validator = new JSONQLValidator(schema, tableName);
             JSONQLValidator.ValidationResult result = validator.validate(query);
@@ -32,6 +54,80 @@ public class JSONQLParser {
                 throw new IllegalArgumentException(result.errors.get(0).message);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enforceOptions(Map<String, Object> query) {
+        // MaxLimit enforcement
+        if (options.getMaxLimit() > 0 && query.containsKey("limit")) {
+            Object limitObj = query.get("limit");
+            int limit = (limitObj instanceof Number) ? ((Number) limitObj).intValue() : 0;
+            if (limit > options.getMaxLimit()) {
+                throw new IllegalArgumentException(
+                    String.format("limit %d exceeds maximum allowed limit of %d", limit, options.getMaxLimit()));
+            }
+        }
+
+        // MaxNestingDepth enforcement
+        if (options.getMaxNestingDepth() > 0 && query.containsKey("include")) {
+            int depth = calculateIncludeDepth(query.get("include"));
+            if (depth > options.getMaxNestingDepth()) {
+                throw new IllegalArgumentException(
+                    String.format("include nesting depth %d exceeds maximum allowed depth of %d",
+                        depth, options.getMaxNestingDepth()));
+            }
+        }
+
+        // AllowedFields enforcement
+        if (options.getAllowedFields() != null && !options.getAllowedFields().isEmpty() && query.containsKey("fields")) {
+            Set<String> allowed = new HashSet<>(options.getAllowedFields());
+            List<?> fields = (List<?>) query.get("fields");
+            for (Object f : fields) {
+                if (!allowed.contains(f.toString())) {
+                    throw new IllegalArgumentException(
+                        String.format("field '%s' is not in the allowed fields list", f));
+                }
+            }
+        }
+
+        // AllowedIncludes enforcement
+        if (options.getAllowedIncludes() != null && !options.getAllowedIncludes().isEmpty() && query.containsKey("include")) {
+            Set<String> allowed = new HashSet<>(options.getAllowedIncludes());
+            Object include = query.get("include");
+            if (include instanceof Map) {
+                for (Object key : ((Map<?, ?>) include).keySet()) {
+                    if (!allowed.contains(key.toString())) {
+                        throw new IllegalArgumentException(
+                            String.format("include '%s' is not in the allowed includes list", key));
+                    }
+                }
+            } else if (include instanceof List) {
+                for (Object item : (List<?>) include) {
+                    if (!allowed.contains(item.toString())) {
+                        throw new IllegalArgumentException(
+                            String.format("include '%s' is not in the allowed includes list", item));
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private int calculateIncludeDepth(Object include) {
+        int maxDepth = 1;
+        if (include instanceof Map) {
+            Map<String, Object> includeMap = (Map<String, Object>) include;
+            for (Object val : includeMap.values()) {
+                if (val instanceof Map) {
+                    Map<String, Object> subMap = (Map<String, Object>) val;
+                    if (subMap.containsKey("include")) {
+                        int depth = 1 + calculateIncludeDepth(subMap.get("include"));
+                        if (depth > maxDepth) maxDepth = depth;
+                    }
+                }
+            }
+        }
+        return maxDepth;
     }
 
     private void validateSyntax(Map<String, Object> query) {

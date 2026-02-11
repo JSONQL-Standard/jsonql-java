@@ -48,7 +48,7 @@ public class JsonQLEngine {
         if (query.containsKey("version")) {
             Object v = query.get("version");
             if (!"1.0".equals(v) && !"1.1".equals(v)) {
-                 throw new IllegalArgumentException("Invalid JSONQL Query");
+                throw new IllegalArgumentException("Invalid JSONQL Query");
             }
         }
 
@@ -63,8 +63,8 @@ public class JsonQLEngine {
 
         // 2. Determine Operation Type
         boolean isMutation = query.containsKey("data") || query.containsKey("patch") || query.containsKey("insert") || 
-                             (query.containsKey("delete") && !query.containsKey("fields")); 
-                             // Basic heuristic, can be improved
+                            (query.containsKey("delete") && !query.containsKey("fields")); 
+                            // Basic heuristic, can be improved
         
         String commandType = isMutation ? "MUTATION" : "SELECT";
 

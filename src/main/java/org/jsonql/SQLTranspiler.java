@@ -302,6 +302,10 @@ public class SQLTranspiler {
         }
         
         if (limit != -1) {
+            // MSSQL requires ORDER BY for OFFSET/FETCH syntax
+            if (dialect instanceof org.jsonql.dialect.MSSQLDialect && !query.containsKey("sort")) {
+                sql.append(" ORDER BY (SELECT NULL)");
+            }
             sql.append(" ").append(dialect.getLimitOffset(limit, offset));
         }
 

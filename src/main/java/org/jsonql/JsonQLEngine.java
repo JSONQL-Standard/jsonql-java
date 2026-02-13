@@ -117,6 +117,17 @@ public class JsonQLEngine {
         List<Map<String, Object>> data;
         boolean isNonReturningDialect = !(transpiler.getDialect() instanceof org.jsonql.dialect.PostgresDialect);
         boolean isInsertMutation = isMutation && result.sql.toUpperCase().trim().startsWith("INSERT");
+        boolean isMssql = transpiler.getDialect() instanceof org.jsonql.dialect.MSSQLDialect;
+
+        // For MSSQL: wrap INSERT with IDENTITY_INSERT ON/OFF only when data contains an explicit "id"
+        @SuppressWarnings("unchecked")
+        Map<String, Object> insertData = isMutation && query.containsKey("data") ? (Map<String, Object>) query.get("data") : null;
+        boolean needsIdentityInsert = isInsertMutation && isMssql && insertData != null && insertData.containsKey("id");
+        if (needsIdentityInsert) {
+            try {
+                conn.createStatement().execute("SET IDENTITY_INSERT [" + table + "] ON");
+            } catch (Exception ignored) { /* table may not have identity column */ }
+        }
 
         try (PreparedStatement stmt = isInsertMutation && isNonReturningDialect
                 ? conn.prepareStatement(result.sql, Statement.RETURN_GENERATED_KEYS)
@@ -136,6 +147,13 @@ public class JsonQLEngine {
             } else {
                 data = Collections.emptyList();
             }
+        }
+
+        // Turn off IDENTITY_INSERT after execution
+        if (needsIdentityInsert) {
+            try {
+                conn.createStatement().execute("SET IDENTITY_INSERT [" + table + "] OFF");
+            } catch (Exception ignored) { }
         }
 
         // 7. Lifecycle: afterExecute
@@ -281,6 +299,7 @@ public class JsonQLEngine {
                 case "postgres": case "postgresql": return postgres();
                 case "mysql":    return mysql();
                 case "sqlite":   return sqlite();
+                case "mssql": case "sqlserver": this.dialect = new MSSQLDialect(); return this;
                 default: this.dialect = new GenericDialect(); return this;
             }
         }

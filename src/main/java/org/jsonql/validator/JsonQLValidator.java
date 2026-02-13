@@ -169,9 +169,7 @@ public class JsonQLValidator {
         if (tableSchema.fields == null) return true;
         JsonQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
-            // Check if it's a nested field or just unknown
-            // For simplicity, we'll assume unknown fields are not allowed if strict schema
-            // But here we just check permissions if field exists
+            // Allow unknown fields - only validate permissions for known fields
             return true; 
         }
 

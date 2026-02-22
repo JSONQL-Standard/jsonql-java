@@ -1,5 +1,6 @@
 package org.jsonql;
 
+import org.jsonql.cache.CacheProvider;
 import org.jsonql.dialect.*;
 import org.jsonql.hydrator.ResultHydrator;
 
@@ -19,12 +20,16 @@ public class JsonQLEngine {
     private final ResultHydrator hydrator;
     private final org.jsonql.schema.JsonQLSchema schema;
     private final JsonQLLogger logger;
+    private final CacheProvider cache;
+    private final int cacheTtl;
 
     protected JsonQLEngine() {
         this.transpiler = null;
         this.hydrator = null;
         this.schema = null;
         this.logger = JsonQLLogger.NoOpLogger.INSTANCE;
+        this.cache = null;
+        this.cacheTtl = 0;
     }
 
     public JsonQLEngine(SQLTranspiler transpiler) {
@@ -36,10 +41,17 @@ public class JsonQLEngine {
     }
 
     public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema, JsonQLLogger logger) {
+        this(transpiler, schema, logger, null, 60);
+    }
+
+    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema,
+                        JsonQLLogger logger, CacheProvider cache, int cacheTtl) {
         this.transpiler = transpiler;
         this.hydrator = new ResultHydrator();
         this.schema = schema;
         this.logger = logger != null ? logger : JsonQLLogger.NoOpLogger.INSTANCE;
+        this.cache = cache;
+        this.cacheTtl = cacheTtl;
     }
 
     /** Quote an identifier (table/column name) using the engine's dialect rules. */
@@ -81,33 +93,77 @@ public class JsonQLEngine {
             lifecycle.beforeTranspile(query, commandType);
         }
 
-        // 4. Transpile
-        SQLTranspiler.TranspilationResult result;
-        if (!isMutation) {
-            result = transpiler.transpile(query, table, schema);
-        } else {
-            // Mutation Logic
+        // 4. Determine mutation sub-type and fire before-mutation hooks
+        String mutationOp = null;
+        if (isMutation) {
             if (query.containsKey("delete") || (query.containsKey("where") && !query.containsKey("data") && !query.containsKey("patch"))) {
-                // DELETE
-                @SuppressWarnings("unchecked")
-                Map<String, Object> where = (Map<String, Object>) query.get("where");
-                result = transpiler.transpileDelete(where, table);
+                mutationOp = "delete";
             } else if (query.containsKey("patch") || (query.containsKey("where") && query.containsKey("data"))) {
-                // UPDATE
-                @SuppressWarnings("unchecked")
-                Map<String, Object> data = (Map<String, Object>) (query.containsKey("patch") ? query.get("patch") : query.get("data"));
-                @SuppressWarnings("unchecked")
-                Map<String, Object> where = (Map<String, Object>) query.get("where");
-                result = transpiler.transpileUpdate(data, where, table);
+                mutationOp = "update";
             } else {
-                // INSERT
-                @SuppressWarnings("unchecked")
-                Map<String, Object> data = (Map<String, Object>) query.get("data");
-                result = transpiler.transpileInsert(data, table);
+                mutationOp = "create";
+            }
+            if (lifecycle != null) {
+                switch (mutationOp) {
+                    case "create": query = lifecycle.beforeCreate(query); break;
+                    case "update": query = lifecycle.beforeUpdate(query); break;
+                    case "delete": query = lifecycle.beforeDelete(query); break;
+                }
             }
         }
 
-        // 5. Lifecycle: beforeExecute
+        // 5. Transpile (with optional cache)
+        String cacheKey = null;
+        SQLTranspiler.TranspilationResult result = null;
+
+        if (!isMutation && cache != null) {
+            cacheKey = "transpile:" + table + ":" + query.hashCode();
+            Object cached = cache.get(cacheKey);
+            if (cached instanceof SQLTranspiler.TranspilationResult) {
+                result = (SQLTranspiler.TranspilationResult) cached;
+                logger.debug("Cache hit for %s", cacheKey);
+            }
+        }
+
+        if (result == null) {
+            if (!isMutation) {
+                result = transpiler.transpile(query, table, schema);
+            } else {
+                switch (mutationOp) {
+                    case "delete": {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> where = (Map<String, Object>) query.get("where");
+                        result = transpiler.transpileDelete(where, table);
+                        break;
+                    }
+                    case "update": {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> patchData = (Map<String, Object>) (query.containsKey("patch") ? query.get("patch") : query.get("data"));
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> where = (Map<String, Object>) query.get("where");
+                        result = transpiler.transpileUpdate(patchData, where, table);
+                        break;
+                    }
+                    default: {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> insertDataMap2 = (Map<String, Object>) query.get("data");
+                        result = transpiler.transpileInsert(insertDataMap2, table);
+                        break;
+                    }
+                }
+            }
+            // Cache SELECT transpilation results
+            if (!isMutation && cache != null && cacheKey != null) {
+                cache.set(cacheKey, result, cacheTtl);
+            }
+        }
+
+        // 6. Lifecycle: afterTranspile
+        if (lifecycle != null) {
+            lifecycle.afterTranspile(result.sql, result.parameters);
+        }
+
+        // 7. Lifecycle: beforeExecute
         logger.debug("SQL: %s", result.sql);
         if (lifecycle != null) {
             lifecycle.beforeExecute(result.sql, result.parameters);
@@ -115,14 +171,18 @@ public class JsonQLEngine {
 
         // 6. Execute
         List<Map<String, Object>> data;
-        boolean isNonReturningDialect = !(transpiler.getDialect() instanceof org.jsonql.dialect.PostgresDialect);
+        boolean isNonReturningDialect = !transpiler.getDialect().supportsReturning();
         boolean isInsertMutation = isMutation && result.sql.toUpperCase().trim().startsWith("INSERT");
-        boolean isMssql = transpiler.getDialect() instanceof org.jsonql.dialect.MSSQLDialect;
+        boolean isMssql = "mssql".equals(transpiler.getDialect().getName());
 
-        // For MSSQL: wrap INSERT with IDENTITY_INSERT ON/OFF only when data contains an explicit "id"
+        // For MSSQL: wrap INSERT with IDENTITY_INSERT ON/OFF only when data contains an explicit PK
+        String pk = "id";
+        if (schema != null && schema.tables.containsKey(table)) {
+            pk = schema.tables.get(table).primaryKey;
+        }
         @SuppressWarnings("unchecked")
         Map<String, Object> insertData = isMutation && query.containsKey("data") ? (Map<String, Object>) query.get("data") : null;
-        boolean needsIdentityInsert = isInsertMutation && isMssql && insertData != null && insertData.containsKey("id");
+        boolean needsIdentityInsert = isInsertMutation && isMssql && insertData != null && insertData.containsKey(pk);
         if (needsIdentityInsert) {
             try {
                 conn.createStatement().execute("SET IDENTITY_INSERT [" + table + "] ON");
@@ -156,9 +216,27 @@ public class JsonQLEngine {
             } catch (Exception ignored) { }
         }
 
-        // 7. Lifecycle: afterExecute
+        // Lifecycle: afterExecute
         if (lifecycle != null) {
             lifecycle.afterExecute(data);
+        }
+
+        // Lifecycle: beforeHydrate / afterHydrate (SELECT only)
+        if (!isMutation && lifecycle != null) {
+            data = lifecycle.beforeHydrate(data);
+        }
+        // Hydration is already done inline above; beforeHydrate allows pre-filtering.
+        if (!isMutation && lifecycle != null) {
+            data = lifecycle.afterHydrate(data);
+        }
+
+        // Lifecycle: after-mutation hooks
+        if (isMutation && lifecycle != null && mutationOp != null) {
+            switch (mutationOp) {
+                case "create": lifecycle.afterCreate(query, data); break;
+                case "update": lifecycle.afterUpdate(query, data); break;
+                case "delete": lifecycle.afterDelete(query, data); break;
+            }
         }
 
         return data;
@@ -185,16 +263,24 @@ public class JsonQLEngine {
                 }
             }
 
-            // Fallback: use explicit id from the INSERT data
+            // Fallback: use explicit PK from the INSERT data
             if (insertedId == null) {
-                Map<String, Object> insertData = (Map<String, Object>) query.get("data");
-                if (insertData != null) {
-                    insertedId = insertData.get("id");
+                Map<String, Object> insertDataMap = (Map<String, Object>) query.get("data");
+                if (insertDataMap != null) {
+                    String followUpPk = "id";
+                    if (schema != null && schema.tables.containsKey(table)) {
+                        followUpPk = schema.tables.get(table).primaryKey;
+                    }
+                    insertedId = insertDataMap.get(followUpPk);
                 }
             }
 
             if (insertedId != null) {
-                return executeFollowUpSelect(conn, table, Map.of("id", insertedId));
+                String selectPk = "id";
+                if (schema != null && schema.tables.containsKey(table)) {
+                    selectPk = schema.tables.get(table).primaryKey;
+                }
+                return executeFollowUpSelect(conn, table, Map.of(selectPk, insertedId));
             }
             return Collections.emptyList();
 
@@ -284,6 +370,8 @@ public class JsonQLEngine {
         private SQLDialect dialect;
         private org.jsonql.schema.JsonQLSchema schema;
         private JsonQLLogger logger;
+        private CacheProvider cache;
+        private int cacheTtl = 60;
 
         public Builder postgres()  { this.dialect = new PostgresDialect(); return this; }
         public Builder mysql()     { this.dialect = new MySQLDialect();    return this; }
@@ -314,9 +402,21 @@ public class JsonQLEngine {
             return this;
         }
 
+        /** Enable query transpilation caching with the given provider. */
+        public Builder cache(CacheProvider cache) {
+            this.cache = cache;
+            return this;
+        }
+
+        /** Set cache TTL in seconds (default 60). */
+        public Builder cacheTtl(int seconds) {
+            this.cacheTtl = seconds;
+            return this;
+        }
+
         public JsonQLEngine build() {
             if (dialect == null) dialect = new PostgresDialect();
-            return new JsonQLEngine(new SQLTranspiler(dialect), schema, logger);
+            return new JsonQLEngine(new SQLTranspiler(dialect), schema, logger, cache, cacheTtl);
         }
     }
 }

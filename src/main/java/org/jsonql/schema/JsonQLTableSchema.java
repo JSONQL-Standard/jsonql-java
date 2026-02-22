@@ -6,6 +6,7 @@ import java.util.HashMap;
 public class JsonQLTableSchema {
     public Map<String, JsonQLFieldSchema> fields = new HashMap<>();
     public Map<String, JsonQLRelation> relations = new HashMap<>();
+    public String primaryKey = "id";
 
     public JsonQLTableSchema() {}
 
@@ -27,6 +28,12 @@ public class JsonQLTableSchema {
         if (relsMap != null) {
             for (Map.Entry<String, Object> entry : relsMap.entrySet()) {
                 this.relations.put(entry.getKey(), new JsonQLRelation((Map<String, Object>) entry.getValue()));
+            }
+        }
+        if (map.containsKey("primaryKey")) {
+            Object pk = map.get("primaryKey");
+            if (pk instanceof String) {
+                this.primaryKey = (String) pk;
             }
         }
     }

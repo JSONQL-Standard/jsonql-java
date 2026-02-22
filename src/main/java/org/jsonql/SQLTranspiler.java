@@ -219,6 +219,35 @@ public class SQLTranspiler {
                                 }
                             }
                         }
+                        if (condMap.containsKey("nin")) {
+                            Object val = condMap.get("nin");
+                            if (val instanceof List) {
+                                List<?> list = (List<?>) val;
+                                if (!list.isEmpty()) {
+                                    List<String> placeholders = new ArrayList<>();
+                                    for (Object o : list) {
+                                        placeholders.add(dialect.getPlaceholder(parameters.size() + 1));
+                                        parameters.add(o);
+                                    }
+                                    conditions.add(quotedField + " NOT IN (" + String.join(", ", placeholders) + ")");
+                                }
+                            }
+                        }
+                        if (condMap.containsKey("contains")) {
+                            Object val = condMap.get("contains");
+                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                            parameters.add("%" + val + "%");
+                        }
+                        if (condMap.containsKey("starts")) {
+                            Object val = condMap.get("starts");
+                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                            parameters.add(val + "%");
+                        }
+                        if (condMap.containsKey("ends")) {
+                            Object val = condMap.get("ends");
+                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                            parameters.add("%" + val);
+                        }
                     } else {
                         // Implicit equality
                         if (cond == null) {

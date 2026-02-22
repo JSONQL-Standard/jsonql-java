@@ -2,8 +2,13 @@ package org.jsonql.dialect;
 
 public class PostgresDialect implements SQLDialect {
     @Override
+    public String getName() {
+        return "postgres";
+    }
+
+    @Override
     public String getPlaceholder(int index) {
-        return "?";
+        return "$" + (index + 1);
     }
 
     @Override
@@ -13,6 +18,20 @@ public class PostgresDialect implements SQLDialect {
 
     @Override
     public String getLimitOffset(int limit, int offset) {
-        return "LIMIT " + limit + " OFFSET " + offset;
+        if (limit == 0 && offset == 0) {
+            return "LIMIT 0";
+        }
+        if (limit > 0) {
+            return "LIMIT " + limit + (offset > 0 ? " OFFSET " + offset : "");
+        }
+        if (offset > 0) {
+            return "OFFSET " + offset;
+        }
+        return "";
+    }
+
+    @Override
+    public boolean supportsReturning() {
+        return true;
     }
 }

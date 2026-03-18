@@ -130,7 +130,20 @@ public class JsonQLParser {
         return maxDepth;
     }
 
+    private static final Set<String> ALLOWED_QUERY_KEYS = Set.of(
+        "version", "from", "where", "sort", "limit", "skip", "offset",
+        "fields", "include", "groupBy", "distinct", "aggregate",
+        "op", "data", "patch"
+    );
+
     private void validateSyntax(Map<String, Object> query) {
+        // Reject unknown keys
+        for (String key : query.keySet()) {
+            if (!ALLOWED_QUERY_KEYS.contains(key)) {
+                throw new IllegalArgumentException("Unknown property \"" + key + "\" in query");
+            }
+        }
+
         if (query.containsKey("version")) {
             Object v = query.get("version");
             if (!"1.0".equals(v) && !"1.1".equals(v)) {
@@ -149,6 +162,36 @@ public class JsonQLParser {
                     if (!isValidIdentifier(f.toString())) {
                         throw new IllegalArgumentException("Invalid field name");
                     }
+                }
+            }
+        }
+
+        // Validate limit
+        if (query.containsKey("limit")) {
+            Object l = query.get("limit");
+            if (l instanceof Number) {
+                if (((Number) l).intValue() < 0) {
+                    throw new IllegalArgumentException("limit must be a non-negative number");
+                }
+            }
+        }
+
+        // Validate skip
+        if (query.containsKey("skip")) {
+            Object s = query.get("skip");
+            if (s instanceof Number) {
+                if (((Number) s).intValue() < 0) {
+                    throw new IllegalArgumentException("skip must be a non-negative number");
+                }
+            }
+        }
+
+        // Validate offset
+        if (query.containsKey("offset")) {
+            Object o = query.get("offset");
+            if (o instanceof Number) {
+                if (((Number) o).intValue() < 0) {
+                    throw new IllegalArgumentException("offset must be a non-negative number");
                 }
             }
         }

@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class JsonQLEngine {
 
@@ -62,12 +63,90 @@ public class JsonQLEngine {
         return "\"" + identifier + "\"";
     }
 
+    private static final Set<String> ALLOWED_QUERY_KEYS = Set.of(
+        "version", "from", "where", "sort", "limit", "skip", "offset",
+        "fields", "include", "groupBy", "distinct", "aggregate",
+        "op", "data", "patch", "insert", "delete"
+    );
+
     public List<Map<String, Object>> execute(Connection conn, String defaultTable, Map<String, Object> query, JsonQLLifecycle lifecycle) throws SQLException {
         // Validation: Version check
         if (query.containsKey("version")) {
             Object v = query.get("version");
             if (!"1.0".equals(v) && !"1.1".equals(v)) {
                 throw new IllegalArgumentException("Invalid JSONQL Query");
+            }
+        }
+
+        // Validation: Unknown keys
+        for (String key : query.keySet()) {
+            if (!ALLOWED_QUERY_KEYS.contains(key)) {
+                throw new IllegalArgumentException("Unknown property \"" + key + "\" in query");
+            }
+        }
+
+        // Validation: Negative limit
+        if (query.containsKey("limit")) {
+            Object l = query.get("limit");
+            if (l instanceof Number && ((Number) l).intValue() < 0) {
+                throw new IllegalArgumentException("limit must be a non-negative number");
+            }
+        }
+
+        // Validation: Negative skip
+        if (query.containsKey("skip")) {
+            Object s = query.get("skip");
+            if (s instanceof Number && ((Number) s).intValue() < 0) {
+                throw new IllegalArgumentException("skip must be a non-negative number");
+            }
+        }
+
+        // Validation: Negative offset
+        if (query.containsKey("offset")) {
+            Object o = query.get("offset");
+            if (o instanceof Number && ((Number) o).intValue() < 0) {
+                throw new IllegalArgumentException("offset must be a non-negative number");
+            }
+        }
+
+        // Validation: Sort type
+        if (query.containsKey("sort")) {
+            Object sort = query.get("sort");
+            if (!(sort instanceof String) && !(sort instanceof Map) && !(sort instanceof List)) {
+                throw new IllegalArgumentException("sort must be a string, object, or array");
+            }
+        }
+
+        // Validation: Unknown WHERE operators
+        if (query.containsKey("where")) {
+            validateWhereOperators(query.get("where"));
+        }
+
+        // Validation: groupBy field names (prevent SQL injection)
+        if (query.containsKey("groupBy")) {
+            Object gb = query.get("groupBy");
+            if (gb instanceof List) {
+                for (Object field : (List<?>) gb) {
+                    if (field instanceof String && !isValidIdentifier((String) field)) {
+                        throw new IllegalArgumentException("Invalid groupBy field name: " + field);
+                    }
+                }
+            }
+        }
+
+        // Validation: aggregate field names (prevent SQL injection)
+        if (query.containsKey("aggregate")) {
+            Object agg = query.get("aggregate");
+            if (agg instanceof Map) {
+                for (Object val : ((Map<?, ?>) agg).values()) {
+                    if (val instanceof Map) {
+                        for (Object fieldRef : ((Map<?, ?>) val).values()) {
+                            if (fieldRef instanceof String && !isValidIdentifier((String) fieldRef)) {
+                                throw new IllegalArgumentException("Invalid aggregate field name: " + fieldRef);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -418,5 +497,53 @@ public class JsonQLEngine {
             if (dialect == null) dialect = new PostgresDialect();
             return new JsonQLEngine(new SQLTranspiler(dialect), schema, logger, cache, cacheTtl);
         }
+    }
+
+    private static final Set<String> VALID_WHERE_OPERATORS = Set.of(
+        "eq", "ne", "neq", "gt", "gte", "lt", "lte",
+        "like", "ilike", "in", "nin", "between",
+        "is", "not", "contains", "startsWith", "endsWith",
+        "starts", "ends"
+    );
+
+    private void validateWhereOperators(Object where) {
+        if (!(where instanceof Map)) return;
+        Map<?, ?> whereMap = (Map<?, ?>) where;
+        for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
+            String key = entry.getKey().toString();
+            // Skip logical operators and field names
+            if ("or".equals(key) || "and".equals(key) || "not".equals(key)) {
+                Object val = entry.getValue();
+                if (val instanceof List) {
+                    for (Object item : (List<?>) val) {
+                        validateWhereOperators(item);
+                    }
+                } else {
+                    validateWhereOperators(val);
+                }
+                continue;
+            }
+            // This is a field name — check its operator map
+            Object val = entry.getValue();
+            if (val instanceof Map) {
+                Map<?, ?> ops = (Map<?, ?>) val;
+                for (Object opKey : ops.keySet()) {
+                    String op = opKey.toString();
+                    if (!VALID_WHERE_OPERATORS.contains(op)) {
+                        throw new IllegalArgumentException("Unknown operator \"" + op + "\" in where clause");
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean isValidIdentifier(String id) {
+        if (id == null || id.isEmpty()) return false;
+        for (char c : id.toCharArray()) {
+            if (!Character.isLetterOrDigit(c) && c != '_') {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -130,10 +130,18 @@ public class SQLTranspiler {
             if (schema == null) {
                 throw new IllegalArgumentException("Schema is required for relationships (include)");
             }
-             Object include = query.get("include");
-             if (include instanceof Map) {
+            Object include = query.get("include");
+            // Normalize array format: ["posts"] -> {"posts": {}}
+            if (include instanceof List) {
+                java.util.LinkedHashMap<String, Object> normalized = new java.util.LinkedHashMap<>();
+                for (Object item : (List<?>) include) {
+                    normalized.put(item.toString(), new java.util.LinkedHashMap<>());
+                }
+                include = normalized;
+            }
+            if (include instanceof Map) {
                 processIncludes((Map<?,?>) include, tableName, schema, selectParts, joinParts, parameters);
-             }
+            }
         }
 
         // 3. FROM clause
@@ -156,109 +164,7 @@ public class SQLTranspiler {
         if (query.containsKey("where")) {
             Object where = query.get("where");
             if (where instanceof Map) {
-                Map<?, ?> whereMap = (Map<?, ?>) where;
-                List<String> conditions = new ArrayList<>();
-                
-                for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
-                    String field = entry.getKey().toString();
-                    if (!isValidIdentifier(field)) {
-                        throw new IllegalArgumentException("Invalid field name in where clause: " + field);
-                    }
-                    String quotedField = dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
-
-                    Object cond = entry.getValue();
-                    
-                    if (cond instanceof Map) {
-                        Map<?, ?> condMap = (Map<?, ?>) cond;
-                        if (condMap.containsKey("eq")) {
-                            Object val = condMap.get("eq");
-                            conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("neq")) {
-                            Object val = condMap.get("neq");
-                            conditions.add(quotedField + " != " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("gt")) {
-                            Object val = condMap.get("gt");
-                            conditions.add(quotedField + " > " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("gte")) {
-                            Object val = condMap.get("gte");
-                            conditions.add(quotedField + " >= " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("lt")) {
-                            Object val = condMap.get("lt");
-                            conditions.add(quotedField + " < " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("lte")) {
-                            Object val = condMap.get("lte");
-                            conditions.add(quotedField + " <= " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("like")) {
-                            Object val = condMap.get("like");
-                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val);
-                        }
-                        if (condMap.containsKey("in")) {
-                            Object val = condMap.get("in");
-                            if (val instanceof List) {
-                                List<?> list = (List<?>) val;
-                                if (!list.isEmpty()) {
-                                    List<String> placeholders = new ArrayList<>();
-                                    for (Object o : list) {
-                                        placeholders.add(dialect.getPlaceholder(parameters.size() + 1));
-                                        parameters.add(o);
-                                    }
-                                    conditions.add(quotedField + " IN (" + String.join(", ", placeholders) + ")");
-                                }
-                            }
-                        }
-                        if (condMap.containsKey("nin")) {
-                            Object val = condMap.get("nin");
-                            if (val instanceof List) {
-                                List<?> list = (List<?>) val;
-                                if (!list.isEmpty()) {
-                                    List<String> placeholders = new ArrayList<>();
-                                    for (Object o : list) {
-                                        placeholders.add(dialect.getPlaceholder(parameters.size() + 1));
-                                        parameters.add(o);
-                                    }
-                                    conditions.add(quotedField + " NOT IN (" + String.join(", ", placeholders) + ")");
-                                }
-                            }
-                        }
-                        if (condMap.containsKey("contains")) {
-                            Object val = condMap.get("contains");
-                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add("%" + val + "%");
-                        }
-                        if (condMap.containsKey("starts")) {
-                            Object val = condMap.get("starts");
-                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(val + "%");
-                        }
-                        if (condMap.containsKey("ends")) {
-                            Object val = condMap.get("ends");
-                            conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add("%" + val);
-                        }
-                    } else {
-                        // Implicit equality
-                        if (cond == null) {
-                            conditions.add(quotedField + " IS NULL");
-                        } else {
-                            conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(cond);
-                        }
-                    }
-                }
-                
+                List<String> conditions = processWhere((Map<?, ?>) where, tableName, parameters);
                 if (!conditions.isEmpty()) {
                     sql.append(" WHERE ").append(String.join(" AND ", conditions));
                 }
@@ -315,11 +221,14 @@ public class SQLTranspiler {
         // 6. LIMIT/OFFSET
         int limit = -1;
         int offset = 0;
+        boolean hasLimit = false;
+        boolean hasOffset = false;
         
         if (query.containsKey("limit")) {
             Object l = query.get("limit");
             if (l instanceof Number) {
                 limit = ((Number) l).intValue();
+                hasLimit = true;
             }
         }
         
@@ -327,15 +236,25 @@ public class SQLTranspiler {
             Object s = query.get("skip");
             if (s instanceof Number) {
                 offset = ((Number) s).intValue();
+                hasOffset = true;
+            }
+        } else if (query.containsKey("offset")) {
+            Object o = query.get("offset");
+            if (o instanceof Number) {
+                offset = ((Number) o).intValue();
+                hasOffset = true;
             }
         }
         
-        if (limit != -1) {
+        if (hasLimit || hasOffset) {
             // MSSQL requires ORDER BY for OFFSET/FETCH syntax
             if (dialect instanceof org.jsonql.dialect.MSSQLDialect && !query.containsKey("sort")) {
                 sql.append(" ORDER BY (SELECT NULL)");
             }
-            sql.append(" ").append(dialect.getLimitOffset(limit, offset));
+            String clause = dialect.getLimitOffset(limit, offset);
+            if (!clause.isEmpty()) {
+                sql.append(" ").append(clause);
+            }
         }
 
         return new TranspilationResult(sql.toString(), parameters);
@@ -497,6 +416,159 @@ public class SQLTranspiler {
         return true;
     }
 
+    @SuppressWarnings("unchecked")
+    private List<String> processWhere(Map<?, ?> whereMap, String tableAlias, List<Object> parameters) {
+        List<String> conditions = new ArrayList<>();
+
+        for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
+            String key = entry.getKey().toString();
+            Object cond = entry.getValue();
+
+            // Logical OR
+            if ("or".equals(key) || "OR".equals(key)) {
+                if (cond instanceof List) {
+                    List<String> orParts = new ArrayList<>();
+                    for (Object item : (List<?>) cond) {
+                        if (item instanceof Map) {
+                            List<String> sub = processWhere((Map<?, ?>) item, tableAlias, parameters);
+                            if (!sub.isEmpty()) {
+                                orParts.add("(" + String.join(" AND ", sub) + ")");
+                            }
+                        }
+                    }
+                    if (!orParts.isEmpty()) {
+                        conditions.add("(" + String.join(" OR ", orParts) + ")");
+                    }
+                }
+                continue;
+            }
+
+            // Logical AND
+            if ("and".equals(key) || "AND".equals(key)) {
+                if (cond instanceof List) {
+                    for (Object item : (List<?>) cond) {
+                        if (item instanceof Map) {
+                            List<String> sub = processWhere((Map<?, ?>) item, tableAlias, parameters);
+                            if (!sub.isEmpty()) {
+                                conditions.add("(" + String.join(" AND ", sub) + ")");
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Logical NOT
+            if ("not".equals(key) || "NOT".equals(key)) {
+                if (cond instanceof Map) {
+                    List<String> sub = processWhere((Map<?, ?>) cond, tableAlias, parameters);
+                    if (!sub.isEmpty()) {
+                        conditions.add("NOT (" + String.join(" AND ", sub) + ")");
+                    }
+                }
+                continue;
+            }
+
+            // Regular field condition
+            if (!isValidIdentifier(key)) {
+                throw new IllegalArgumentException("Invalid field name in where clause: " + key);
+            }
+            String quotedField = dialect.quoteIdentifier(tableAlias) + "." + dialect.quoteIdentifier(key);
+
+            if (cond instanceof Map) {
+                Map<?, ?> condMap = (Map<?, ?>) cond;
+                if (condMap.containsKey("eq")) {
+                    Object val = condMap.get("eq");
+                    if (val == null) {
+                        conditions.add(quotedField + " IS NULL");
+                    } else {
+                        conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
+                }
+                if (condMap.containsKey("ne") || condMap.containsKey("neq")) {
+                    Object val = condMap.containsKey("ne") ? condMap.get("ne") : condMap.get("neq");
+                    if (val == null) {
+                        conditions.add(quotedField + " IS NOT NULL");
+                    } else {
+                        conditions.add(quotedField + " != " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
+                }
+                if (condMap.containsKey("gt")) {
+                    conditions.add(quotedField + " > " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("gt"));
+                }
+                if (condMap.containsKey("gte")) {
+                    conditions.add(quotedField + " >= " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("gte"));
+                }
+                if (condMap.containsKey("lt")) {
+                    conditions.add(quotedField + " < " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("lt"));
+                }
+                if (condMap.containsKey("lte")) {
+                    conditions.add(quotedField + " <= " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("lte"));
+                }
+                if (condMap.containsKey("like")) {
+                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("like"));
+                }
+                if (condMap.containsKey("in")) {
+                    Object val = condMap.get("in");
+                    if (val instanceof List) {
+                        List<?> list = (List<?>) val;
+                        if (!list.isEmpty()) {
+                            List<String> ph = new ArrayList<>();
+                            for (Object o : list) {
+                                ph.add(dialect.getPlaceholder(parameters.size() + 1));
+                                parameters.add(o);
+                            }
+                            conditions.add(quotedField + " IN (" + String.join(", ", ph) + ")");
+                        }
+                    }
+                }
+                if (condMap.containsKey("nin")) {
+                    Object val = condMap.get("nin");
+                    if (val instanceof List) {
+                        List<?> list = (List<?>) val;
+                        if (!list.isEmpty()) {
+                            List<String> ph = new ArrayList<>();
+                            for (Object o : list) {
+                                ph.add(dialect.getPlaceholder(parameters.size() + 1));
+                                parameters.add(o);
+                            }
+                            conditions.add(quotedField + " NOT IN (" + String.join(", ", ph) + ")");
+                        }
+                    }
+                }
+                if (condMap.containsKey("contains")) {
+                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add("%" + condMap.get("contains") + "%");
+                }
+                if (condMap.containsKey("starts")) {
+                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(condMap.get("starts") + "%");
+                }
+                if (condMap.containsKey("ends")) {
+                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add("%" + condMap.get("ends"));
+                }
+            } else {
+                // Implicit equality
+                if (cond == null) {
+                    conditions.add(quotedField + " IS NULL");
+                } else {
+                    conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
+                    parameters.add(cond);
+                }
+            }
+        }
+        return conditions;
+    }
+
+    @SuppressWarnings("unchecked")
     private void processIncludes(Map<?,?> includes, String parentTable, JsonQLSchema schema, List<String> selectParts, List<String> joinParts, List<Object> parameters) {
         JsonQLTableSchema parentSchema = schema.tables.get(parentTable);
         if (parentSchema == null) throw new IllegalArgumentException("Table schema not found for: " + parentTable);
@@ -533,6 +605,17 @@ public class SQLTranspiler {
                     if (!isValidIdentifier(fieldName)) throw new IllegalArgumentException("Invalid field: " + fieldName);
                     String alias = relationName + "__" + fieldName; 
                     selectParts.add(quotedTarget + "." + dialect.quoteIdentifier(fieldName) + " AS " + dialect.quoteIdentifier(alias));
+                }
+            } else {
+                // No explicit fields — select all columns from target table schema
+                JsonQLTableSchema targetSchema = schema.tables.get(targetTable);
+                if (targetSchema != null && targetSchema.fields != null && !targetSchema.fields.isEmpty()) {
+                    for (String fieldName : new java.util.TreeSet<>(targetSchema.fields.keySet())) {
+                        String alias = relationName + "__" + fieldName;
+                        selectParts.add(quotedTarget + "." + dialect.quoteIdentifier(fieldName) + " AS " + dialect.quoteIdentifier(alias));
+                    }
+                } else {
+                    selectParts.add(quotedTarget + ".*");
                 }
             }
             

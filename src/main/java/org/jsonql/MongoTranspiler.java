@@ -1,6 +1,7 @@
 package org.jsonql;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Converts JSONQL queries and mutations into MongoDB operation descriptors.
@@ -8,6 +9,12 @@ import java.util.*;
  * sort specs, and aggregation pipelines.
  */
 public class MongoTranspiler {
+
+    /** Known WHERE operators — anything else raises an error. */
+    private static final Set<String> KNOWN_OPS = Set.of(
+        "eq", "neq", "ne", "gt", "gte", "lt", "lte",
+        "like", "in", "nin", "contains", "starts", "ends"
+    );
 
     public MongoResult transpile(Map<String, Object> query, String collection) {
         MongoResult result = new MongoResult(collection, "find");
@@ -64,6 +71,81 @@ public class MongoTranspiler {
         if (query.containsKey("skip")) {
             Object s = query.get("skip");
             if (s instanceof Number) result.skip = ((Number) s).intValue();
+        }
+
+        // DISTINCT → aggregation pipeline with $group
+        Object distinctObj = query.get("distinct");
+        boolean hasDistinct = false;
+        if (distinctObj instanceof Boolean) {
+            hasDistinct = (Boolean) distinctObj;
+        } else if (distinctObj instanceof Map) {
+            hasDistinct = true;
+        }
+
+        if (hasDistinct && !query.containsKey("aggregate")) {
+            result.operation = "aggregate";
+            List<Map<String, Object>> pipeline = new ArrayList<>();
+
+            // $match stage
+            if (!result.filter.isEmpty()) {
+                pipeline.add(Map.of("$match", result.filter));
+            }
+
+            // Determine fields for distinct
+            List<String> distinctFields = new ArrayList<>();
+            if (distinctObj instanceof Map) {
+                Map<?, ?> dMap = (Map<?, ?>) distinctObj;
+                Object fieldsObj = dMap.get("fields");
+                if (fieldsObj instanceof List) {
+                    for (Object f : (List<?>) fieldsObj) {
+                        distinctFields.add(f.toString());
+                    }
+                }
+            }
+            // Fallback to query.fields
+            if (distinctFields.isEmpty() && query.containsKey("fields")) {
+                Object fields = query.get("fields");
+                if (fields instanceof List) {
+                    for (Object f : (List<?>) fields) {
+                        distinctFields.add(f.toString());
+                    }
+                }
+            }
+
+            if (!distinctFields.isEmpty()) {
+                // $group stage — _id is the combination of distinct fields
+                Map<String, Object> groupId = new LinkedHashMap<>();
+                Map<String, Object> groupStage = new LinkedHashMap<>();
+                for (String f : distinctFields) {
+                    groupId.put(f, "$" + f);
+                    groupStage.put(f, Map.of("$first", "$" + f));
+                }
+                groupStage.put("_id", groupId);
+                pipeline.add(Map.of("$group", groupStage));
+
+                // $project stage — keep only requested fields, hide _id
+                Map<String, Object> projectStage = new LinkedHashMap<>();
+                projectStage.put("_id", 0);
+                for (String f : distinctFields) {
+                    projectStage.put(f, 1);
+                }
+                pipeline.add(Map.of("$project", projectStage));
+            }
+
+            // Sort stage
+            if (result.sort != null) {
+                pipeline.add(Map.of("$sort", result.sort));
+            }
+            // Skip/Limit stages
+            if (result.skip > 0) {
+                pipeline.add(Map.of("$skip", result.skip));
+            }
+            if (result.limit > 0) {
+                pipeline.add(Map.of("$limit", result.limit));
+            }
+
+            result.pipeline = pipeline;
+            return result;
         }
 
         // AGGREGATE -> aggregation pipeline
@@ -191,6 +273,7 @@ public class MongoTranspiler {
             String field = entry.getKey().toString();
             Object cond = entry.getValue();
 
+            // Handle "or" logical operator
             if ("or".equals(field) || "OR".equals(field)) {
                 if (cond instanceof List) {
                     List<Map<String, Object>> orConditions = new ArrayList<>();
@@ -206,20 +289,68 @@ public class MongoTranspiler {
                 continue;
             }
 
+            // Handle "and" logical operator
+            if ("and".equals(field) || "AND".equals(field)) {
+                if (cond instanceof List) {
+                    List<Map<String, Object>> andConditions = new ArrayList<>();
+                    for (Object item : (List<?>) cond) {
+                        if (item instanceof Map) {
+                            andConditions.add(processWhere((Map<?, ?>) item));
+                        }
+                    }
+                    if (!andConditions.isEmpty()) {
+                        filter.put("$and", andConditions);
+                    }
+                }
+                continue;
+            }
+
+            // Handle "not" logical operator
+            if ("not".equals(field) || "NOT".equals(field)) {
+                if (cond instanceof Map) {
+                    Map<String, Object> subFilter = processWhere((Map<?, ?>) cond);
+                    if (!subFilter.isEmpty()) {
+                        filter.put("$nor", List.of(subFilter));
+                    }
+                }
+                continue;
+            }
+
             if (cond instanceof Map) {
                 Map<?, ?> condMap = (Map<?, ?>) cond;
                 Map<String, Object> mongoOp = new LinkedHashMap<>();
+                boolean handled = false;
 
                 if (condMap.containsKey("eq")) {
                     filter.put(field, condMap.get("eq"));
                     continue;
                 }
-                if (condMap.containsKey("neq")) mongoOp.put("$ne", condMap.get("neq"));
-                if (condMap.containsKey("gt")) mongoOp.put("$gt", condMap.get("gt"));
-                if (condMap.containsKey("gte")) mongoOp.put("$gte", condMap.get("gte"));
-                if (condMap.containsKey("lt")) mongoOp.put("$lt", condMap.get("lt"));
-                if (condMap.containsKey("lte")) mongoOp.put("$lte", condMap.get("lte"));
+                if (condMap.containsKey("neq")) {
+                    handled = true;
+                    mongoOp.put("$ne", condMap.get("neq"));
+                }
+                if (condMap.containsKey("ne")) {
+                    handled = true;
+                    mongoOp.put("$ne", condMap.get("ne"));
+                }
+                if (condMap.containsKey("gt")) {
+                    handled = true;
+                    mongoOp.put("$gt", condMap.get("gt"));
+                }
+                if (condMap.containsKey("gte")) {
+                    handled = true;
+                    mongoOp.put("$gte", condMap.get("gte"));
+                }
+                if (condMap.containsKey("lt")) {
+                    handled = true;
+                    mongoOp.put("$lt", condMap.get("lt"));
+                }
+                if (condMap.containsKey("lte")) {
+                    handled = true;
+                    mongoOp.put("$lte", condMap.get("lte"));
+                }
                 if (condMap.containsKey("like")) {
+                    handled = true;
                     String pattern = condMap.get("like").toString()
                             .replace("%", ".*")
                             .replace("_", ".");
@@ -227,11 +358,49 @@ public class MongoTranspiler {
                     mongoOp.put("$options", "i");
                 }
                 if (condMap.containsKey("in")) {
+                    handled = true;
                     Object val = condMap.get("in");
                     if (val instanceof List) {
                         mongoOp.put("$in", val);
                     }
                 }
+                if (condMap.containsKey("nin")) {
+                    handled = true;
+                    Object val = condMap.get("nin");
+                    if (val instanceof List) {
+                        mongoOp.put("$nin", val);
+                    }
+                }
+                if (condMap.containsKey("contains")) {
+                    handled = true;
+                    String s = condMap.get("contains").toString();
+                    mongoOp.put("$regex", Pattern.quote(s));
+                    mongoOp.put("$options", "i");
+                }
+                if (condMap.containsKey("starts")) {
+                    handled = true;
+                    String s = condMap.get("starts").toString();
+                    mongoOp.put("$regex", "^" + Pattern.quote(s));
+                    mongoOp.put("$options", "i");
+                }
+                if (condMap.containsKey("ends")) {
+                    handled = true;
+                    String s = condMap.get("ends").toString();
+                    mongoOp.put("$regex", Pattern.quote(s) + "$");
+                    mongoOp.put("$options", "i");
+                }
+
+                // Unknown operator validation
+                if (!handled && !condMap.isEmpty()) {
+                    for (Object op : condMap.keySet()) {
+                        String opStr = op.toString();
+                        if (!KNOWN_OPS.contains(opStr)) {
+                            throw new JsonQLTranspileException(
+                                "Unknown operator \"" + opStr + "\" for field \"" + field + "\"");
+                        }
+                    }
+                }
+
                 if (!mongoOp.isEmpty()) {
                     filter.put(field, mongoOp);
                 }

@@ -2,6 +2,7 @@ package org.jsonql;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Thrown from lifecycle hooks to signal an HTTP-level error.
@@ -45,5 +46,24 @@ public class JsonQLHookException extends JsonQLException {
     /** True when this exception carries a list of detail errors. */
     public boolean hasErrors() {
         return errors != null && !errors.isEmpty();
+    }
+
+    /**
+     * Build the standard JSONQL error response body map.
+     * <p>
+     * When detail errors are present, returns:
+     * {@code {"errors": [...], "status": N, "message": "..."}}
+     * <p>
+     * Otherwise returns: {@code {"error": "..."}}
+     */
+    public Map<String, Object> toResponseBody() {
+        if (hasErrors()) {
+            return Map.of(
+                "errors", errors,
+                "status", status,
+                "message", getMessage()
+            );
+        }
+        return Map.of("error", getMessage());
     }
 }

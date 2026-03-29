@@ -133,7 +133,7 @@ public class JsonQLParser {
     private static final Set<String> ALLOWED_QUERY_KEYS = Set.of(
         "version", "from", "where", "sort", "limit", "skip", "offset",
         "fields", "include", "groupBy", "distinct", "aggregate",
-        "op", "data", "patch"
+        "op", "data", "patch", "insert", "update", "delete", "upsert", "create"
     );
 
     private void validateSyntax(Map<String, Object> query) {
@@ -145,8 +145,8 @@ public class JsonQLParser {
         }
 
         if (query.containsKey("version")) {
-            Object v = query.get("version");
-            if (!"1.0".equals(v) && !"1.1".equals(v)) {
+            String vs = String.valueOf(query.get("version"));
+            if (!"1".equals(vs) && !"1.0".equals(vs) && !"1.1".equals(vs)) {
                 throw new IllegalArgumentException("Query version must be \"1.0\" or \"1.1\"");
             }
         }
@@ -286,14 +286,15 @@ public class JsonQLParser {
         Map<?, ?> whereMap = (Map<?, ?>) where;
         for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
             String key = entry.getKey().toString();
-            if ("and".equals(key) || "or".equals(key)) {
+            String keyLower = key.toLowerCase();
+            if ("and".equals(keyLower) || "or".equals(keyLower)) {
                 Object val = entry.getValue();
                 if (val instanceof List) {
                     for (Object item : (List<?>) val) {
                         validateWhereFieldNames(item);
                     }
                 }
-            } else if ("not".equals(key)) {
+            } else if ("not".equals(keyLower)) {
                 validateWhereFieldNames(entry.getValue());
             } else {
                 if (!isValidIdentifier(key)) {

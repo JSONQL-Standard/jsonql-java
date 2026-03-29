@@ -9,10 +9,15 @@ import org.jsonql.schema.JsonQLRelation;
 import java.util.Map;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Set;
 
 public class JsonQLValidator {
     private final JsonQLSchema schema;
     private final String tableName;
+    private final boolean rejectUnknownFields;
+
+    private static final Set<String> VALID_AGGREGATE_FUNCTIONS =
+        Set.of("count", "sum", "avg", "min", "max");
 
     public static class ValidationResult {
         public boolean valid;
@@ -34,8 +39,17 @@ public class JsonQLValidator {
     }
 
     public JsonQLValidator(JsonQLSchema schema, String tableName) {
+        this(schema, tableName, false);
+    }
+
+    /**
+     * @param rejectUnknownFields when true, fields not declared in the schema
+     *        are treated as validation errors instead of being silently allowed.
+     */
+    public JsonQLValidator(JsonQLSchema schema, String tableName, boolean rejectUnknownFields) {
         this.schema = schema;
         this.tableName = tableName;
+        this.rejectUnknownFields = rejectUnknownFields;
     }
 
     public ValidationResult validate(Map<String, Object> query) {
@@ -107,6 +121,13 @@ public class JsonQLValidator {
                     Map<?, ?> funcMap = (Map<?, ?>) val;
                     for (Map.Entry<?, ?> entry : funcMap.entrySet()) {
                         String func = entry.getKey().toString();
+                        // Validate function name
+                        if (!VALID_AGGREGATE_FUNCTIONS.contains(func)) {
+                            result.valid = false;
+                            result.errors.add(new ValidationError("UNKNOWN_AGGREGATE",
+                                "Unknown aggregate function: " + func));
+                            continue;
+                        }
                         String fieldName = entry.getValue().toString();
                         if (!validateField(fieldName, func, tableSchema, result)) {
                             result.valid = false;
@@ -169,8 +190,12 @@ public class JsonQLValidator {
         if (tableSchema.fields == null) return true;
         JsonQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
-            // Allow unknown fields - only validate permissions for known fields
-            return true; 
+            if (rejectUnknownFields) {
+                result.errors.add(new ValidationError("UNKNOWN_FIELD",
+                    "Unknown field: " + fieldName));
+                return false;
+            }
+            return true;
         }
 
         boolean allowed = true;

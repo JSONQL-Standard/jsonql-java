@@ -200,14 +200,54 @@ public class JsonQLParser {
             Object sort = query.get("sort");
             if (sort instanceof String) {
                 String s = (String) sort;
-                String field = s;
-                if (s.startsWith("-")) {
-                    field = s.substring(1);
-                }
+                String field = s.startsWith("-") ? s.substring(1) : s;
                 if (!isValidIdentifier(field)) {
                     throw new IllegalArgumentException("Invalid sort field");
                 }
+            } else if (sort instanceof List) {
+                for (Object s : (List<?>) sort) {
+                    String name = s.toString();
+                    if (name.startsWith("-")) name = name.substring(1);
+                    if (!isValidIdentifier(name)) {
+                        throw new IllegalArgumentException("Invalid sort field: " + name);
+                    }
+                }
             }
+        }
+
+        // Validate include relation names
+        if (query.containsKey("include")) {
+            Object include = query.get("include");
+            if (include instanceof List) {
+                for (Object rel : (List<?>) include) {
+                    if (!isValidIdentifier(rel.toString())) {
+                        throw new IllegalArgumentException("Invalid include name: " + rel);
+                    }
+                }
+            } else if (include instanceof Map) {
+                for (Object key : ((Map<?, ?>) include).keySet()) {
+                    if (!isValidIdentifier(key.toString())) {
+                        throw new IllegalArgumentException("Invalid include name: " + key);
+                    }
+                }
+            }
+        }
+
+        // Validate groupBy field names
+        if (query.containsKey("groupBy")) {
+            Object gb = query.get("groupBy");
+            if (gb instanceof List) {
+                for (Object g : (List<?>) gb) {
+                    if (!isValidIdentifier(g.toString())) {
+                        throw new IllegalArgumentException("Invalid groupBy field: " + g);
+                    }
+                }
+            }
+        }
+
+        // Validate WHERE clause field names
+        if (query.containsKey("where")) {
+            validateWhereFieldNames(query.get("where"));
         }
 
         if (query.containsKey("aggregate")) {
@@ -217,10 +257,17 @@ public class JsonQLParser {
                 for (Object val : aggMap.values()) {
                     if (val instanceof Map) {
                         Map<?, ?> funcMap = (Map<?, ?>) val;
-                        for (Object k : funcMap.keySet()) {
-                            String funcName = k.toString();
+                        for (Map.Entry<?, ?> fe : funcMap.entrySet()) {
+                            String funcName = fe.getKey().toString();
                             if (!funcName.matches("count|avg|sum|min|max")) {
                                 throw new IllegalArgumentException("Unknown aggregation function: " + funcName);
+                            }
+                            // Validate the field reference
+                            if (fe.getValue() instanceof String) {
+                                String fieldRef = fe.getValue().toString();
+                                if (!isValidIdentifier(fieldRef)) {
+                                    throw new IllegalArgumentException("Invalid aggregate field: " + fieldRef);
+                                }
                             }
                         }
                     }
@@ -229,11 +276,50 @@ public class JsonQLParser {
         }
     }
 
-    private boolean isValidIdentifier(String id) {
+    /**
+     * Recursively validate that all field names in a WHERE clause are safe identifiers.
+     * Logical operators (and, or, not) are traversed; all other keys are checked.
+     */
+    @SuppressWarnings("unchecked")
+    private void validateWhereFieldNames(Object where) {
+        if (!(where instanceof Map)) return;
+        Map<?, ?> whereMap = (Map<?, ?>) where;
+        for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
+            String key = entry.getKey().toString();
+            if ("and".equals(key) || "or".equals(key)) {
+                Object val = entry.getValue();
+                if (val instanceof List) {
+                    for (Object item : (List<?>) val) {
+                        validateWhereFieldNames(item);
+                    }
+                }
+            } else if ("not".equals(key)) {
+                validateWhereFieldNames(entry.getValue());
+            } else {
+                if (!isValidIdentifier(key)) {
+                    throw new IllegalArgumentException("Invalid where field: " + key);
+                }
+            }
+        }
+    }
+
+    /**
+     * SQL-safe identifier: a dot-separated path of simple identifiers.
+     * Each segment must start with a letter or underscore, followed by
+     * letters, digits, or underscores.  Dot notation supports JSON
+     * column paths like {@code properties.material}.
+     * <p>Matches {@code ^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$}.
+     */
+    static boolean isValidIdentifier(String id) {
         if (id == null || id.isEmpty()) return false;
-        for (char c : id.toCharArray()) {
-            if (!Character.isLetterOrDigit(c) && c != '_') {
-                return false;
+        String[] segments = id.split("\\.", -1);
+        for (String seg : segments) {
+            if (seg.isEmpty()) return false;
+            char first = seg.charAt(0);
+            if (!Character.isLetter(first) && first != '_') return false;
+            for (int i = 1; i < seg.length(); i++) {
+                char c = seg.charAt(i);
+                if (!Character.isLetterOrDigit(c) && c != '_') return false;
             }
         }
         return true;

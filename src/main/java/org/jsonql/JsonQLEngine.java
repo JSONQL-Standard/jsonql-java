@@ -539,9 +539,14 @@ public class JsonQLEngine {
 
     private static boolean isValidIdentifier(String id) {
         if (id == null || id.isEmpty()) return false;
-        for (char c : id.toCharArray()) {
-            if (!Character.isLetterOrDigit(c) && c != '_') {
-                return false;
+        String[] segments = id.split("\\.", -1);
+        for (String seg : segments) {
+            if (seg.isEmpty()) return false;
+            char first = seg.charAt(0);
+            if (!Character.isLetter(first) && first != '_') return false;
+            for (int i = 1; i < seg.length(); i++) {
+                char c = seg.charAt(i);
+                if (!Character.isLetterOrDigit(c) && c != '_') return false;
             }
         }
         return true;

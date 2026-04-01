@@ -191,6 +191,9 @@ public class SQLTranspiler {
         // 5. SORT clause
         if (query.containsKey("sort")) {
             Object sort = query.get("sort");
+            if (!(sort instanceof String) && !(sort instanceof List) && !(sort instanceof Map)) {
+                throw new IllegalArgumentException("sort must be a string, object, or array");
+            }
             List<String> sortFields = new ArrayList<>();
             
             if (sort instanceof String) {

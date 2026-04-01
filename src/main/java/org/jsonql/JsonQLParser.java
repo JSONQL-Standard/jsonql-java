@@ -147,7 +147,7 @@ public class JsonQLParser {
         if (query.containsKey("version")) {
             String vs = String.valueOf(query.get("version"));
             if (!"1".equals(vs) && !"1.0".equals(vs) && !"1.1".equals(vs)) {
-                throw new IllegalArgumentException("Query version must be \"1.0\" or \"1.1\"");
+                throw new IllegalArgumentException("Invalid JSONQL Query");
             }
         }
 

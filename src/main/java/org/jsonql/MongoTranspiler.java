@@ -42,6 +42,9 @@ public class MongoTranspiler {
         // SORT
         if (query.containsKey("sort")) {
             Object sort = query.get("sort");
+            if (sort != null && !(sort instanceof String) && !(sort instanceof List) && !(sort instanceof Map)) {
+                throw new IllegalArgumentException("sort must be a string, object, or array");
+            }
             Map<String, Object> sortDoc = new LinkedHashMap<>();
             List<String> sortItems = new ArrayList<>();
             if (sort instanceof String) {

@@ -8,7 +8,7 @@ public class MSSQLDialect implements SQLDialect {
 
     @Override
     public String getPlaceholder(int index) {
-        return "@p" + (index + 1);
+        return "?";
     }
 
     @Override

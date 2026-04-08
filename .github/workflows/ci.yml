@@ -130,6 +130,7 @@ jobs:
           SPRING_DATASOURCE_PASSWORD=password \
           JSONQL_SCHEMA_PATH="${{ github.workspace }}/jsonql-tests/fixtures/standard/schema.json" \
           PORT=${{ matrix.adapter.port }} \
+          SERVER_PORT=${{ matrix.adapter.port }} \
           bash -c '${{ matrix.adapter.build }}' > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
 

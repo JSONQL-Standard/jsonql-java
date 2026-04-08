@@ -133,32 +133,49 @@ jobs:
           bash -c '${{ matrix.adapter.build }}' > /tmp/server.log 2>&1 &
           echo $! > /tmp/server.pid
 
-          # Wait for server to be ready (Java apps need longer startup)
-          # Payara Micro restarts the HTTP listener during WAR deployment,
-          # so we need to wait for the app-level endpoint, not just /health
-          for i in $(seq 1 60); do
-            if curl -s http://localhost:${{ matrix.adapter.port }}/health 2>/dev/null | grep -q status; then
-              echo "Health endpoint responding on port ${{ matrix.adapter.port }}"
-              # Give the app time to fully deploy (Payara restarts the listener)
-              sleep 5
-              break
-            fi
-            if ! kill -0 $(cat /tmp/server.pid) 2>/dev/null; then
-              echo "Server process died. Logs:"
-              cat /tmp/server.log
-              exit 1
-            fi
-            sleep 3
-          done
+          # Wait for server to be ready
+          if [ "${{ matrix.adapter.type }}" = "jakarta-ee" ]; then
+            # Payara Micro: MicroProfile Health responds BEFORE the app deploys,
+            # so we must wait for the log message that confirms full deployment.
+            echo "Waiting for Payara Micro to fully deploy..."
+            for i in $(seq 1 60); do
+              if grep -q "ready in" /tmp/server.log 2>/dev/null; then
+                echo "Payara deployment complete"
+                sleep 3
+                break
+              fi
+              if ! kill -0 $(cat /tmp/server.pid) 2>/dev/null; then
+                echo "Server process died. Logs:"
+                cat /tmp/server.log
+                exit 1
+              fi
+              sleep 3
+            done
+          else
+            # Spring Boot: /health only responds once the app is ready
+            echo "Waiting for Spring Boot to start..."
+            for i in $(seq 1 60); do
+              if curl -s http://localhost:${{ matrix.adapter.port }}/health 2>/dev/null | grep -q status; then
+                echo "Server ready on port ${{ matrix.adapter.port }}"
+                break
+              fi
+              if ! kill -0 $(cat /tmp/server.pid) 2>/dev/null; then
+                echo "Server process died. Logs:"
+                cat /tmp/server.log
+                exit 1
+              fi
+              sleep 3
+            done
+          fi
 
-          # Final check with retries (Payara listener may still be restarting)
-          for attempt in $(seq 1 5); do
+          # Final verification
+          for attempt in $(seq 1 10); do
             if curl -sf http://localhost:${{ matrix.adapter.port }}/health > /dev/null 2>&1; then
               echo "Server confirmed ready on port ${{ matrix.adapter.port }}"
               break
             fi
-            if [ "$attempt" -eq 5 ]; then
-              echo "Server failed to start. Logs:"
+            if [ "$attempt" -eq 10 ]; then
+              echo "Server failed to start after all retries. Logs:"
               cat /tmp/server.log
               exit 1
             fi

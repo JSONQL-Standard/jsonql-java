@@ -111,7 +111,10 @@ jobs:
 
       - name: Install java-shared to local Maven repo
         run: |
-          cd jsonql-tests/integration-tests/java-shared
+          cd jsonql-java
+          JSONQL_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          cd ../jsonql-tests/integration-tests/java-shared
+          mvn versions:use-dep-version -Dincludes=org.jsonql:jsonql-java -DdepVersion="$JSONQL_VERSION" -DforceVersion=true -q
           mvn -q install -Dmaven.test.skip=true
 
       - name: Start ${{ matrix.adapter.name }}

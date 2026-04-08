@@ -70,12 +70,12 @@ jobs:
           - name: java-jakarta-ee-simple
             port: 8082
             test-path: tests/unified
-            build: mvn -q clean package payara-micro:bundle && java -jar target/*-microbundle.jar --nocluster --port 8080 --postbootcommandfile postboot.txt
+            build: mvn -q clean package payara-micro:bundle && java -jar target/*-microbundle.jar --nocluster --port $PORT --postbootcommandfile postboot.txt
             type: jakarta-ee
           - name: java-jakarta-ee-lifecycle
             port: 8083
             test-path: tests/unified/lifecycle
-            build: mvn -q clean package payara-micro:bundle && java -jar target/*-microbundle.jar --nocluster --port 8080 --postbootcommandfile postboot.txt
+            build: mvn -q clean package payara-micro:bundle && java -jar target/*-microbundle.jar --nocluster --port $PORT --postbootcommandfile postboot.txt
             type: jakarta-ee
 
     steps:

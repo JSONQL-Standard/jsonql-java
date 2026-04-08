@@ -134,9 +134,13 @@ jobs:
           echo $! > /tmp/server.pid
 
           # Wait for server to be ready (Java apps need longer startup)
+          # Payara Micro restarts the HTTP listener during WAR deployment,
+          # so we need to wait for the app-level endpoint, not just /health
           for i in $(seq 1 60); do
             if curl -s http://localhost:${{ matrix.adapter.port }}/health 2>/dev/null | grep -q status; then
-              echo "Server ready on port ${{ matrix.adapter.port }}"
+              echo "Health endpoint responding on port ${{ matrix.adapter.port }}"
+              # Give the app time to fully deploy (Payara restarts the listener)
+              sleep 5
               break
             fi
             if ! kill -0 $(cat /tmp/server.pid) 2>/dev/null; then
@@ -147,12 +151,19 @@ jobs:
             sleep 3
           done
 
-          # Final check
-          if ! curl -sf http://localhost:${{ matrix.adapter.port }}/health > /dev/null 2>&1; then
-            echo "Server failed to start. Logs:"
-            cat /tmp/server.log
-            exit 1
-          fi
+          # Final check with retries (Payara listener may still be restarting)
+          for attempt in $(seq 1 5); do
+            if curl -sf http://localhost:${{ matrix.adapter.port }}/health > /dev/null 2>&1; then
+              echo "Server confirmed ready on port ${{ matrix.adapter.port }}"
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              echo "Server failed to start. Logs:"
+              cat /tmp/server.log
+              exit 1
+            fi
+            sleep 3
+          done
 
       - name: Run compliance tests against ${{ matrix.adapter.name }}
         run: |

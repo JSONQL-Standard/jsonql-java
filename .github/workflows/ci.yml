@@ -113,8 +113,12 @@ jobs:
         run: |
           cd jsonql-java
           JSONQL_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          cd ../jsonql-tests/integration-tests/java-shared
-          mvn versions:use-dep-version -Dincludes=org.jsonql:jsonql-java -DdepVersion="$JSONQL_VERSION" -DforceVersion=true -q
+          echo "Syncing jsonql-java version to $JSONQL_VERSION in all Java adapters"
+          for dir in java-shared ${{ matrix.adapter.name }}; do
+            cd ${{ github.workspace }}/jsonql-tests/integration-tests/$dir
+            mvn versions:use-dep-version -Dincludes=org.jsonql:jsonql-java -DdepVersion="$JSONQL_VERSION" -DforceVersion=true -q
+          done
+          cd ${{ github.workspace }}/jsonql-tests/integration-tests/java-shared
           mvn -q install -Dmaven.test.skip=true
 
       - name: Start ${{ matrix.adapter.name }}

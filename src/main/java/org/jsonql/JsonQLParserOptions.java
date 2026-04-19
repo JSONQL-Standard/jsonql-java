@@ -4,8 +4,9 @@ import java.util.List;
 
 /**
  * Configuration options for the JSONQL parser that control security and validation limits.
- * <p>
- * Usage:
+ *
+ * <p>Usage:
+ *
  * <pre>
  * JsonQLParserOptions options = new JsonQLParserOptions()
  *     .setMaxNestingDepth(3)
@@ -27,25 +28,37 @@ public class JsonQLParserOptions {
     /** Restrict which relation names can be included (null = all allowed) */
     private List<String> allowedIncludes;
 
-    public int getMaxNestingDepth() { return maxNestingDepth; }
+    public int getMaxNestingDepth() {
+        return maxNestingDepth;
+    }
+
     public JsonQLParserOptions setMaxNestingDepth(int maxNestingDepth) {
         this.maxNestingDepth = maxNestingDepth;
         return this;
     }
 
-    public int getMaxLimit() { return maxLimit; }
+    public int getMaxLimit() {
+        return maxLimit;
+    }
+
     public JsonQLParserOptions setMaxLimit(int maxLimit) {
         this.maxLimit = maxLimit;
         return this;
     }
 
-    public List<String> getAllowedFields() { return allowedFields; }
+    public List<String> getAllowedFields() {
+        return allowedFields;
+    }
+
     public JsonQLParserOptions setAllowedFields(List<String> allowedFields) {
         this.allowedFields = allowedFields;
         return this;
     }
 
-    public List<String> getAllowedIncludes() { return allowedIncludes; }
+    public List<String> getAllowedIncludes() {
+        return allowedIncludes;
+    }
+
     public JsonQLParserOptions setAllowedIncludes(List<String> allowedIncludes) {
         this.allowedIncludes = allowedIncludes;
         return this;

@@ -1,22 +1,21 @@
 package org.jsonql;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.Assume;
-import org.junit.Test;
 import static org.junit.Assert.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
-
+import java.util.Map;
 import org.jsonql.dialect.GenericDialect;
-import org.jsonql.schema.JsonQLSchema;
-import org.jsonql.schema.JsonQLTableSchema;
 import org.jsonql.schema.JsonQLFieldSchema;
 import org.jsonql.schema.JsonQLRelation;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.junit.Assume;
+import org.junit.Test;
 
 public class TranspilationTest {
 
@@ -24,11 +23,12 @@ public class TranspilationTest {
     public void testTranspilation() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         File dir = resolveTranspilationDir();
-        
+
         Assume.assumeTrue(
-            "Transpilation tests directory not found at: " + (dir != null ? dir.getAbsolutePath() : "null") + " (skipping)",
-            dir != null && dir.exists()
-        );
+                "Transpilation tests directory not found at: "
+                        + (dir != null ? dir.getAbsolutePath() : "null")
+                        + " (skipping)",
+                dir != null && dir.exists());
 
         File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
         if (files == null || files.length == 0) {
@@ -39,7 +39,8 @@ public class TranspilationTest {
 
         for (File file : files) {
             System.out.println("Running transpilation tests from: " + file.getName());
-            List<TranspilationTestCase> tests = mapper.readValue(file, new TypeReference<List<TranspilationTestCase>>(){});
+            List<TranspilationTestCase> tests =
+                    mapper.readValue(file, new TypeReference<List<TranspilationTestCase>>() {});
 
             for (TranspilationTestCase tc : tests) {
                 System.out.println("Running transpilation test: " + tc.id);
@@ -47,18 +48,24 @@ public class TranspilationTest {
                 if (tc.schema != null) {
                     schema = parseSchema(tc.schema);
                 }
-                
-                SQLTranspiler.TranspilationResult result = transpiler.transpile(tc.query, tc.tableName, schema);
+
+                SQLTranspiler.TranspilationResult result =
+                        transpiler.transpile(tc.query, tc.tableName, schema);
                 assertEquals(
-                    "Test " + tc.id + " failed",
-                    normalizeSql(tc.expectedSQL),
-                    normalizeSql(result.sql)
-                );
-                
+                        "Test " + tc.id + " failed",
+                        normalizeSql(tc.expectedSQL),
+                        normalizeSql(result.sql));
+
                 if (tc.expectedArgs != null) {
-                    assertEquals("Test " + tc.id + " args count mismatch", tc.expectedArgs.size(), result.parameters.size());
+                    assertEquals(
+                            "Test " + tc.id + " args count mismatch",
+                            tc.expectedArgs.size(),
+                            result.parameters.size());
                     for (int i = 0; i < tc.expectedArgs.size(); i++) {
-                        assertEquals("Test " + tc.id + " arg " + i + " mismatch", tc.expectedArgs.get(i), result.parameters.get(i));
+                        assertEquals(
+                                "Test " + tc.id + " arg " + i + " mismatch",
+                                tc.expectedArgs.get(i),
+                                result.parameters.get(i));
                     }
                 }
             }
@@ -66,11 +73,12 @@ public class TranspilationTest {
     }
 
     private File resolveTranspilationDir() {
-        String[] candidates = new String[] {
-            "../jsonql-spec/tests/transpilation",
-            "../jsonql-go/tests/fixtures/transpilation",
-            "tests/fixtures/transpilation"
-        };
+        String[] candidates =
+                new String[] {
+                    "../jsonql-spec/tests/transpilation",
+                    "../jsonql-go/tests/fixtures/transpilation",
+                    "tests/fixtures/transpilation"
+                };
 
         for (String candidate : candidates) {
             File dir = new File(candidate);
@@ -86,14 +94,14 @@ public class TranspilationTest {
         if (sql == null) {
             return "";
         }
-        String normalized = sql
-            .replace("\"", "")
-            .replace("`", "")
-            .replace("[", "")
-            .replace("]", "")
-            .replaceAll("\\s+", " ")
-            .trim()
-            .toLowerCase(Locale.ROOT);
+        String normalized =
+                sql.replace("\"", "")
+                        .replace("`", "")
+                        .replace("[", "")
+                        .replace("]", "")
+                        .replaceAll("\\s+", " ")
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
         return normalized;
     }
 
@@ -103,14 +111,15 @@ public class TranspilationTest {
             String tableName = entry.getKey();
             Map<String, Object> tableMap = (Map<String, Object>) entry.getValue();
             JsonQLTableSchema tableSchema = new JsonQLTableSchema();
-            
+
             if (tableMap.containsKey("fields")) {
                 Map<String, Object> fieldsMap = (Map<String, Object>) tableMap.get("fields");
                 for (Map.Entry<String, Object> fieldEntry : fieldsMap.entrySet()) {
                     String fieldName = fieldEntry.getKey();
                     Map<String, Object> fieldProps = (Map<String, Object>) fieldEntry.getValue();
                     String type = (String) fieldProps.get("type");
-                    JsonQLFieldSchema fieldSchema = new JsonQLFieldSchema(type != null ? type : "string");
+                    JsonQLFieldSchema fieldSchema =
+                            new JsonQLFieldSchema(type != null ? type : "string");
                     tableSchema.fields.put(fieldName, fieldSchema);
                 }
             }
@@ -120,14 +129,16 @@ public class TranspilationTest {
                 for (Map.Entry<String, Object> relEntry : relsMap.entrySet()) {
                     String relName = relEntry.getKey();
                     Map<String, Object> relProps = (Map<String, Object>) relEntry.getValue();
-                    JsonQLRelation relSchema = new JsonQLRelation((String) relProps.get("type"), (String) relProps.get("target"));
+                    JsonQLRelation relSchema =
+                            new JsonQLRelation(
+                                    (String) relProps.get("type"), (String) relProps.get("target"));
                     if (relProps.containsKey("foreignKey")) {
                         relSchema.foreignKey = (String) relProps.get("foreignKey");
                     }
                     tableSchema.relations.put(relName, relSchema);
                 }
             }
-            
+
             schema.tables.put(tableName, tableSchema);
         }
         return schema;

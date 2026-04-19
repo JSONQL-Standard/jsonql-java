@@ -27,7 +27,8 @@ public class JsonQLFieldSchema {
         if (map.containsKey("allowFilter")) this.allowFilter = (Boolean) map.get("allowFilter");
         if (map.containsKey("allowSort")) this.allowSort = (Boolean) map.get("allowSort");
         if (map.containsKey("allowGroup")) this.allowGroup = (Boolean) map.get("allowGroup");
-        if (map.containsKey("allowAggregate")) this.allowAggregate = (Boolean) map.get("allowAggregate");
+        if (map.containsKey("allowAggregate"))
+            this.allowAggregate = (Boolean) map.get("allowAggregate");
         if (map.containsKey("allowCount")) this.allowCount = (Boolean) map.get("allowCount");
         if (map.containsKey("allowSum")) this.allowSum = (Boolean) map.get("allowSum");
         if (map.containsKey("allowAvg")) this.allowAvg = (Boolean) map.get("allowAvg");

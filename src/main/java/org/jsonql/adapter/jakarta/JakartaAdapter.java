@@ -1,17 +1,17 @@
 package org.jsonql.adapter.jakarta;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.jsonql.JsonQLException;
 import org.jsonql.JsonQLValidationException;
 import org.jsonql.adapter.AdapterOptions;
 import org.jsonql.adapter.BaseHandler;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Jakarta EE / JAX-RS adapter for JSONQL.
  *
- * <p>Usage in a JAX-RS resource:</p>
+ * <p>Usage in a JAX-RS resource:
+ *
  * <pre>
  * &#64;Path("/api")
  * &#64;Produces(MediaType.APPLICATION_JSON)
@@ -67,9 +67,9 @@ public class JakartaAdapter {
     /**
      * Handle a JSONQL request and return a framework-neutral response.
      *
-     * @param body       Parsed request body
+     * @param body Parsed request body
      * @param httpMethod HTTP method string
-     * @param pathName   URL path segment (table name)
+     * @param pathName URL path segment (table name)
      * @return ResponseResult with status code and body
      */
     public ResponseResult handle(Map<String, Object> body, String httpMethod, String pathName) {
@@ -97,9 +97,7 @@ public class JakartaAdapter {
         }
     }
 
-    /**
-     * Simple result wrapper holding an HTTP status code and response body.
-     */
+    /** Simple result wrapper holding an HTTP status code and response body. */
     public static class ResponseResult {
         public final int status;
         public final Map<String, Object> body;

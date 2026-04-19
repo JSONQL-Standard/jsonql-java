@@ -1,7 +1,7 @@
 package org.jsonql.schema;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class JsonQLTableSchema {
     public Map<String, JsonQLFieldSchema> fields = new HashMap<>();
@@ -15,7 +15,9 @@ public class JsonQLTableSchema {
         if (map.containsKey("fields")) {
             Map<String, Object> fieldsMap = (Map<String, Object>) map.get("fields");
             for (Map.Entry<String, Object> entry : fieldsMap.entrySet()) {
-                this.fields.put(entry.getKey(), new JsonQLFieldSchema((Map<String, Object>) entry.getValue()));
+                this.fields.put(
+                        entry.getKey(),
+                        new JsonQLFieldSchema((Map<String, Object>) entry.getValue()));
             }
         }
         // Support both "relations" (standard) and "relationships" (legacy)
@@ -27,7 +29,8 @@ public class JsonQLTableSchema {
         }
         if (relsMap != null) {
             for (Map.Entry<String, Object> entry : relsMap.entrySet()) {
-                this.relations.put(entry.getKey(), new JsonQLRelation((Map<String, Object>) entry.getValue()));
+                this.relations.put(
+                        entry.getKey(), new JsonQLRelation((Map<String, Object>) entry.getValue()));
             }
         }
         if (map.containsKey("primaryKey")) {

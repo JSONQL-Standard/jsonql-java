@@ -1,7 +1,7 @@
 package org.jsonql.schema;
 
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 
 public class JsonQLSchema {
     public Map<String, JsonQLTableSchema> tables = new HashMap<>();
@@ -12,7 +12,9 @@ public class JsonQLSchema {
         if (schemaMap != null && schemaMap.containsKey("tables")) {
             Map<String, Object> tablesMap = (Map<String, Object>) schemaMap.get("tables");
             for (Map.Entry<String, Object> entry : tablesMap.entrySet()) {
-                this.tables.put(entry.getKey(), new JsonQLTableSchema((Map<String, Object>) entry.getValue()));
+                this.tables.put(
+                        entry.getKey(),
+                        new JsonQLTableSchema((Map<String, Object>) entry.getValue()));
             }
         }
     }

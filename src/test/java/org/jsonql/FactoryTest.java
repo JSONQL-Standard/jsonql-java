@@ -1,16 +1,14 @@
 package org.jsonql;
 
-import org.jsonql.schema.JsonQLSchema;
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import org.jsonql.schema.JsonQLSchema;
+import org.junit.Test;
 
-/**
- * Tests for JsonQLFactory — validates envOr, loadSchema, mustLoadSchema.
- */
+/** Tests for JsonQLFactory — validates envOr, loadSchema, mustLoadSchema. */
 public class FactoryTest {
 
     // ── envOr ──────────────────────────────────────────────────────────
@@ -36,7 +34,8 @@ public class FactoryTest {
         File tmpFile = File.createTempFile("jsonql-schema-", ".json");
         tmpFile.deleteOnExit();
         try (FileWriter w = new FileWriter(tmpFile)) {
-            w.write("{\"tables\":{\"users\":{\"fields\":{\"id\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}}}}}");
+            w.write(
+                    "{\"tables\":{\"users\":{\"fields\":{\"id\":{\"type\":\"integer\"},\"name\":{\"type\":\"string\"}}}}}");
         }
 
         JsonQLSchema schema = JsonQLFactory.loadSchema(tmpFile.getAbsolutePath());

@@ -1,20 +1,18 @@
 package org.jsonql.adapter;
 
+import java.sql.Connection;
+import java.util.*;
 import org.jsonql.*;
 import org.jsonql.dialect.*;
 import org.jsonql.hydrator.ResultHydrator;
-import org.jsonql.schema.JsonQLSchema;
 import org.jsonql.validator.JsonQLValidator;
 
-import java.sql.Connection;
-import java.util.*;
-
 /**
- * Framework-agnostic base handler that implements the full JSONQL pipeline:
- * parse → validate → transpile → execute → hydrate.
+ * Framework-agnostic base handler that implements the full JSONQL pipeline: parse → validate →
+ * transpile → execute → hydrate.
  *
- * <p>Framework-specific adapters (Spring Boot, Jakarta EE, etc.) should
- * delegate to this handler for the core pipeline logic.</p>
+ * <p>Framework-specific adapters (Spring Boot, Jakarta EE, etc.) should delegate to this handler
+ * for the core pipeline logic.
  */
 public class BaseHandler {
 
@@ -30,7 +28,13 @@ public class BaseHandler {
         this.parser = new JsonQLParser();
         this.transpiler = new SQLTranspiler(newDialect(options.dialect));
         this.hydrator = new ResultHydrator();
-        this.engine = new JsonQLEngine(transpiler, options.schema, options.logger, options.cache, options.cacheTtl);
+        this.engine =
+                new JsonQLEngine(
+                        transpiler,
+                        options.schema,
+                        options.logger,
+                        options.cache,
+                        options.cacheTtl);
 
         if (options.logger != null) {
             this.logger = options.logger;
@@ -44,17 +48,15 @@ public class BaseHandler {
     /**
      * Process a JSONQL request and return the response data.
      *
-     * @param rawInput   The raw JSON body as a Map
+     * @param rawInput The raw JSON body as a Map
      * @param httpMethod The HTTP method (GET, POST, PUT, PATCH, DELETE)
-     * @param pathName   URL path segment identifying the table (e.g., "users")
+     * @param pathName URL path segment identifying the table (e.g., "users")
      * @return A result map with "data" and "meta" keys
      * @throws JsonQLException on parse/validation/transpile errors
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> processRequest(
-            Map<String, Object> rawInput,
-            String httpMethod,
-            String pathName) throws Exception {
+            Map<String, Object> rawInput, String httpMethod, String pathName) throws Exception {
 
         Map<String, Object> rawQuery = rawInput != null ? new HashMap<>(rawInput) : new HashMap<>();
 
@@ -83,14 +85,17 @@ public class BaseHandler {
         if (options.connectionSupplier != null) {
             Connection conn = options.connectionSupplier.get();
             try {
-                List<Map<String, Object>> data = engine.execute(
-                        conn, tableName, rawQuery, options.lifecycle);
+                List<Map<String, Object>> data =
+                        engine.execute(conn, tableName, rawQuery, options.lifecycle);
                 Map<String, Object> result = new HashMap<>();
                 result.put("meta", Map.of("query", rawQuery));
                 result.put("data", data);
                 return result;
             } finally {
-                try { conn.close(); } catch (Exception ignored) {}
+                try {
+                    conn.close();
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -101,9 +106,7 @@ public class BaseHandler {
         return result;
     }
 
-    /**
-     * Resolve the target table from query body and URL path.
-     */
+    /** Resolve the target table from query body and URL path. */
     private String resolveTableName(Map<String, Object> query, String pathName) {
         String tableName = (String) query.get("from");
 
@@ -112,7 +115,8 @@ public class BaseHandler {
             if (mapped != null) {
                 if (tableName != null) {
                     throw new IllegalArgumentException(
-                            "Cannot specify 'from' on a mapped endpoint. This endpoint is mapped to: " + mapped);
+                            "Cannot specify 'from' on a mapped endpoint. This endpoint is mapped to: "
+                                    + mapped);
                 }
                 return mapped;
             }
@@ -133,9 +137,7 @@ public class BaseHandler {
         return tableName;
     }
 
-    /**
-     * Infer mutation operation from HTTP method.
-     */
+    /** Infer mutation operation from HTTP method. */
     private void inferMutation(String httpMethod, Map<String, Object> raw) {
         if (raw.containsKey("op")) return;
 
@@ -196,9 +198,7 @@ public class BaseHandler {
         }
     }
 
-    /**
-     * Create a SQL dialect from a dialect name string.
-     */
+    /** Create a SQL dialect from a dialect name string. */
     private static SQLDialect newDialect(String name) {
         if (name == null) return new SQLiteDialect();
         switch (name.toLowerCase()) {

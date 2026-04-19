@@ -1,15 +1,13 @@
 package org.jsonql;
 
-import org.jsonql.dialect.SQLDialect;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import org.jsonql.dialect.PostgresDialect;
+import org.jsonql.dialect.SQLDialect;
+import org.jsonql.schema.JsonQLRelation;
 import org.jsonql.schema.JsonQLSchema;
 import org.jsonql.schema.JsonQLTableSchema;
-import org.jsonql.schema.JsonQLRelation;
-
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.stream.Collectors;
 
 public class SQLTranspiler {
 
@@ -37,12 +35,13 @@ public class SQLTranspiler {
             this.parameters = parameters;
         }
     }
-    
+
     public TranspilationResult transpile(Map<String, Object> query, String tableName) {
         return transpile(query, tableName, null);
     }
 
-    public TranspilationResult transpile(Map<String, Object> query, String tableName, JsonQLSchema schema) {
+    public TranspilationResult transpile(
+            Map<String, Object> query, String tableName, JsonQLSchema schema) {
         if (!isValidIdentifier(tableName)) {
             throw new IllegalArgumentException("Invalid table name: " + tableName);
         }
@@ -62,7 +61,10 @@ public class SQLTranspiler {
                         if (!isValidIdentifier(fieldStr)) {
                             throw new IllegalArgumentException("Invalid field name: " + fieldStr);
                         }
-                        selectParts.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(fieldStr));
+                        selectParts.add(
+                                dialect.quoteIdentifier(tableName)
+                                        + "."
+                                        + dialect.quoteIdentifier(fieldStr));
                     }
                 }
             }
@@ -76,71 +78,86 @@ public class SQLTranspiler {
                 for (Map.Entry<?, ?> entry : aggs.entrySet()) {
                     String alias = entry.getKey().toString();
                     if (!isValidIdentifier(alias)) continue;
-                    
+
                     Object funcObj = entry.getValue();
                     if (funcObj instanceof Map) {
                         Map<?, ?> funcMap = (Map<?, ?>) funcObj;
                         for (Map.Entry<?, ?> funcEntry : funcMap.entrySet()) {
                             String func = funcEntry.getKey().toString();
                             String field = funcEntry.getValue().toString();
-                            
+
                             // Basic function validation
-                            if (!List.of("sum", "count", "avg", "min", "max").contains(func.toLowerCase())) {
-                                continue; 
+                            if (!List.of("sum", "count", "avg", "min", "max")
+                                    .contains(func.toLowerCase())) {
+                                continue;
                             }
-                            
+
                             String col;
                             if ("*".equals(field)) {
                                 col = "*";
                             } else {
                                 if (!isValidIdentifier(field)) continue;
-                                col = dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
+                                col =
+                                        dialect.quoteIdentifier(tableName)
+                                                + "."
+                                                + dialect.quoteIdentifier(field);
                             }
-                            selectParts.add(func.toUpperCase() + "(" + col + ") AS " + dialect.quoteIdentifier(alias));
+                            selectParts.add(
+                                    func.toUpperCase()
+                                            + "("
+                                            + col
+                                            + ") AS "
+                                            + dialect.quoteIdentifier(alias));
                         }
                     }
                 }
             }
         }
-        
+
         // Implicitly select GroupBy fields if not specified in fields request
         if (query.containsKey("groupBy") && !query.containsKey("fields")) {
-             Object gb = query.get("groupBy");
-             if (gb instanceof List) {
-                 for (Object g : (List<?>) gb) {
-                     String f = g.toString();
-                     if (isValidIdentifier(f)) {
-                         selectParts.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(f));
-                     }
-                 }
-             }
+            Object gb = query.get("groupBy");
+            if (gb instanceof List) {
+                for (Object g : (List<?>) gb) {
+                    String f = g.toString();
+                    if (isValidIdentifier(f)) {
+                        selectParts.add(
+                                dialect.quoteIdentifier(tableName)
+                                        + "."
+                                        + dialect.quoteIdentifier(f));
+                    }
+                }
+            }
         }
-        
+
         if (selectParts.isEmpty()) {
-             if (query.containsKey("include") && schema != null) {
-                  selectParts.add(dialect.quoteIdentifier(tableName) + ".*");
-             } else {
-                  // Existing behavior: defaults to *
-                  selectParts.add("*"); 
-             }
+            if (query.containsKey("include") && schema != null) {
+                selectParts.add(dialect.quoteIdentifier(tableName) + ".*");
+            } else {
+                // Existing behavior: defaults to *
+                selectParts.add("*");
+            }
         }
 
         // 2. Process Includes
         if (query.containsKey("include")) {
             if (schema == null) {
-                throw new IllegalArgumentException("Schema is required for relationships (include)");
+                throw new IllegalArgumentException(
+                        "Schema is required for relationships (include)");
             }
             Object include = query.get("include");
             // Normalize array format: ["posts"] -> {"posts": {}}
             if (include instanceof List) {
-                java.util.LinkedHashMap<String, Object> normalized = new java.util.LinkedHashMap<>();
+                java.util.LinkedHashMap<String, Object> normalized =
+                        new java.util.LinkedHashMap<>();
                 for (Object item : (List<?>) include) {
                     normalized.put(item.toString(), new java.util.LinkedHashMap<>());
                 }
                 include = normalized;
             }
             if (include instanceof Map) {
-                processIncludes((Map<?,?>) include, tableName, schema, selectParts, joinParts, parameters);
+                processIncludes(
+                        (Map<?, ?>) include, tableName, schema, selectParts, joinParts, parameters);
             }
         }
 
@@ -148,27 +165,32 @@ public class SQLTranspiler {
         StringBuilder sql = new StringBuilder();
         sql.append("SELECT ");
         if (query.containsKey("distinct")) {
-             Object d = query.get("distinct");
-             if (Boolean.TRUE.equals(d) || "true".equalsIgnoreCase(String.valueOf(d))) {
-                  sql.append("DISTINCT ");
-             } else if (d instanceof List) {
-                  // distinct: ["field1", "field2"] — use DISTINCT with specific fields in SELECT
-                  sql.append("DISTINCT ");
-                  if (selectParts.isEmpty() || (selectParts.size() == 1 && "*".equals(selectParts.get(0)))) {
-                       selectParts.clear();
-                       for (Object f : (List<?>) d) {
-                            String fieldStr = f.toString();
-                            if (!isValidIdentifier(fieldStr)) {
-                                 throw new IllegalArgumentException("Invalid distinct field: " + fieldStr);
-                            }
-                            selectParts.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(fieldStr));
-                       }
-                  }
-             }
+            Object d = query.get("distinct");
+            if (Boolean.TRUE.equals(d) || "true".equalsIgnoreCase(String.valueOf(d))) {
+                sql.append("DISTINCT ");
+            } else if (d instanceof List) {
+                // distinct: ["field1", "field2"] — use DISTINCT with specific fields in SELECT
+                sql.append("DISTINCT ");
+                if (selectParts.isEmpty()
+                        || (selectParts.size() == 1 && "*".equals(selectParts.get(0)))) {
+                    selectParts.clear();
+                    for (Object f : (List<?>) d) {
+                        String fieldStr = f.toString();
+                        if (!isValidIdentifier(fieldStr)) {
+                            throw new IllegalArgumentException(
+                                    "Invalid distinct field: " + fieldStr);
+                        }
+                        selectParts.add(
+                                dialect.quoteIdentifier(tableName)
+                                        + "."
+                                        + dialect.quoteIdentifier(fieldStr));
+                    }
+                }
+            }
         }
         String selectClause = String.join(", ", selectParts);
         sql.append(selectClause).append(" FROM ").append(dialect.quoteIdentifier(tableName));
-        
+
         for (String join : joinParts) {
             sql.append(" ").append(join);
         }
@@ -192,7 +214,10 @@ public class SQLTranspiler {
                 for (Object g : (List<?>) gb) {
                     String f = g.toString();
                     if (isValidIdentifier(f)) {
-                        groups.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(f));
+                        groups.add(
+                                dialect.quoteIdentifier(tableName)
+                                        + "."
+                                        + dialect.quoteIdentifier(f));
                     }
                 }
                 if (!groups.isEmpty()) {
@@ -208,7 +233,7 @@ public class SQLTranspiler {
                 throw new IllegalArgumentException("sort must be a string, object, or array");
             }
             List<String> sortFields = new ArrayList<>();
-            
+
             if (sort instanceof String) {
                 String s = (String) sort;
                 boolean desc = s.startsWith("-");
@@ -216,7 +241,11 @@ public class SQLTranspiler {
                 if (!isValidIdentifier(field)) {
                     throw new IllegalArgumentException("Invalid sort field: " + field);
                 }
-                sortFields.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field) + (desc ? " DESC" : " ASC"));
+                sortFields.add(
+                        dialect.quoteIdentifier(tableName)
+                                + "."
+                                + dialect.quoteIdentifier(field)
+                                + (desc ? " DESC" : " ASC"));
             } else if (sort instanceof List) {
                 for (Object o : (List<?>) sort) {
                     String s = o.toString();
@@ -225,10 +254,14 @@ public class SQLTranspiler {
                     if (!isValidIdentifier(field)) {
                         throw new IllegalArgumentException("Invalid sort field: " + field);
                     }
-                    sortFields.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field) + (desc ? " DESC" : " ASC"));
+                    sortFields.add(
+                            dialect.quoteIdentifier(tableName)
+                                    + "."
+                                    + dialect.quoteIdentifier(field)
+                                    + (desc ? " DESC" : " ASC"));
                 }
             }
-            
+
             if (!sortFields.isEmpty()) {
                 sql.append(" ORDER BY ").append(String.join(", ", sortFields));
             }
@@ -239,7 +272,7 @@ public class SQLTranspiler {
         int offset = 0;
         boolean hasLimit = false;
         boolean hasOffset = false;
-        
+
         if (query.containsKey("limit")) {
             Object l = query.get("limit");
             if (l instanceof Number) {
@@ -247,7 +280,7 @@ public class SQLTranspiler {
                 hasLimit = true;
             }
         }
-        
+
         if (query.containsKey("skip")) {
             Object s = query.get("skip");
             if (s instanceof Number) {
@@ -261,7 +294,7 @@ public class SQLTranspiler {
                 hasOffset = true;
             }
         }
-        
+
         if (hasLimit || hasOffset) {
             // MSSQL requires ORDER BY for OFFSET/FETCH syntax
             if (dialect instanceof org.jsonql.dialect.MSSQLDialect && !query.containsKey("sort")) {
@@ -277,143 +310,172 @@ public class SQLTranspiler {
     }
 
     public TranspilationResult transpileInsert(Map<String, Object> data, String tableName) {
-        if (!isValidIdentifier(tableName)) throw new IllegalArgumentException("Invalid table: " + tableName);
-        
+        if (!isValidIdentifier(tableName))
+            throw new IllegalArgumentException("Invalid table: " + tableName);
+
         List<String> columns = new ArrayList<>();
         List<String> placeholders = new ArrayList<>();
         List<Object> parameters = new ArrayList<>();
-        
+
         for (Map.Entry<String, Object> entry : data.entrySet()) {
             String key = entry.getKey();
             // simple validation, strict validation should be done by validator
-            if (!isValidIdentifier(key)) continue; 
-            
+            if (!isValidIdentifier(key)) continue;
+
             columns.add(dialect.quoteIdentifier(key));
             placeholders.add(dialect.getPlaceholder(parameters.size() + 1));
             parameters.add(entry.getValue());
         }
-        
+
         if (columns.isEmpty()) {
-             throw new IllegalArgumentException("No valid columns provided for insert");
+            throw new IllegalArgumentException("No valid columns provided for insert");
         }
-        
+
         StringBuilder sql = new StringBuilder();
-        sql.append("INSERT INTO ").append(dialect.quoteIdentifier(tableName))
-           .append(" (").append(String.join(", ", columns)).append(")")
-           .append(" VALUES (").append(String.join(", ", placeholders)).append(")");
-           
+        sql.append("INSERT INTO ")
+                .append(dialect.quoteIdentifier(tableName))
+                .append(" (")
+                .append(String.join(", ", columns))
+                .append(")")
+                .append(" VALUES (")
+                .append(String.join(", ", placeholders))
+                .append(")");
+
         if (dialect instanceof PostgresDialect) {
             sql.append(" RETURNING *");
         }
-        
+
         return new TranspilationResult(sql.toString(), parameters);
     }
 
-    public TranspilationResult transpileUpdate(Map<String, Object> data, Map<String, Object> where, String tableName) {
-         if (!isValidIdentifier(tableName)) throw new IllegalArgumentException("Invalid table: " + tableName);
-         
-         List<String> sets = new ArrayList<>();
-         List<Object> parameters = new ArrayList<>();
-         
-         for (Map.Entry<String, Object> entry : data.entrySet()) {
+    public TranspilationResult transpileUpdate(
+            Map<String, Object> data, Map<String, Object> where, String tableName) {
+        if (!isValidIdentifier(tableName))
+            throw new IllegalArgumentException("Invalid table: " + tableName);
+
+        List<String> sets = new ArrayList<>();
+        List<Object> parameters = new ArrayList<>();
+
+        for (Map.Entry<String, Object> entry : data.entrySet()) {
             String key = entry.getKey();
             if (!isValidIdentifier(key)) continue;
-            
-            sets.add(dialect.quoteIdentifier(key) + " = " + dialect.getPlaceholder(parameters.size() + 1));
+
+            sets.add(
+                    dialect.quoteIdentifier(key)
+                            + " = "
+                            + dialect.getPlaceholder(parameters.size() + 1));
             parameters.add(entry.getValue());
-         }
-         
-         if (sets.isEmpty()) {
-              throw new IllegalArgumentException("No data provided for update");
-         }
-         
-         StringBuilder sql = new StringBuilder();
-         sql.append("UPDATE ").append(dialect.quoteIdentifier(tableName))
-            .append(" SET ").append(String.join(", ", sets));
-            
-         // Process WHERE
-         if (where != null && !where.isEmpty()) {
-             List<String> conditions = new ArrayList<>();
-             for (Map.Entry<String, Object> entry : where.entrySet()) {
-                 String field = entry.getKey();
-                  if (!isValidIdentifier(field)) continue;
-                 
-                  String quotedField = dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
-                  Object val = entry.getValue(); // Simplified handling, assuming direct eq or simple operators handled manually or parsed before
-                  
-                  // Re-use the complex WHERE parsing logic? It's buried in transpile(). 
-                  // For now, I'll implement basic EQ support which covers most tests.
-                  // Real implementation should extract where parsing to a reusable method.
-                  
-                  if (val instanceof Map) {
-                       // Handle complex operators if passed map
-                       Map<?,?> opMap = (Map<?,?>) val;
-                        if (opMap.containsKey("eq")) {
-                            conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                            parameters.add(opMap.get("eq"));
-                        }
-                        // ... (other ops)
-                  } else {
-                      // Implicit EQ
-                      if (val == null) {
-                           conditions.add(quotedField + " IS NULL");
-                      } else {
-                           conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                           parameters.add(val);
-                      }
-                  }
-             }
-             if (!conditions.isEmpty()) {
-                 sql.append(" WHERE ").append(String.join(" AND ", conditions));
-             }
-         }
-         
-         if (dialect instanceof PostgresDialect) {
+        }
+
+        if (sets.isEmpty()) {
+            throw new IllegalArgumentException("No data provided for update");
+        }
+
+        StringBuilder sql = new StringBuilder();
+        sql.append("UPDATE ")
+                .append(dialect.quoteIdentifier(tableName))
+                .append(" SET ")
+                .append(String.join(", ", sets));
+
+        // Process WHERE
+        if (where != null && !where.isEmpty()) {
+            List<String> conditions = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : where.entrySet()) {
+                String field = entry.getKey();
+                if (!isValidIdentifier(field)) continue;
+
+                String quotedField =
+                        dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
+                Object val = entry.getValue(); // Simplified handling, assuming direct eq or simple
+                // operators handled manually or parsed before
+
+                // Re-use the complex WHERE parsing logic? It's buried in transpile().
+                // For now, I'll implement basic EQ support which covers most tests.
+                // Real implementation should extract where parsing to a reusable method.
+
+                if (val instanceof Map) {
+                    // Handle complex operators if passed map
+                    Map<?, ?> opMap = (Map<?, ?>) val;
+                    if (opMap.containsKey("eq")) {
+                        conditions.add(
+                                quotedField
+                                        + " = "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(opMap.get("eq"));
+                    }
+                    // ... (other ops)
+                } else {
+                    // Implicit EQ
+                    if (val == null) {
+                        conditions.add(quotedField + " IS NULL");
+                    } else {
+                        conditions.add(
+                                quotedField
+                                        + " = "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
+                }
+            }
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+        }
+
+        if (dialect instanceof PostgresDialect) {
             sql.append(" RETURNING *");
         }
-         
-         return new TranspilationResult(sql.toString(), parameters);
+
+        return new TranspilationResult(sql.toString(), parameters);
     }
 
     public TranspilationResult transpileDelete(Map<String, Object> where, String tableName) {
-        if (!isValidIdentifier(tableName)) throw new IllegalArgumentException("Invalid table: " + tableName);
-        
+        if (!isValidIdentifier(tableName))
+            throw new IllegalArgumentException("Invalid table: " + tableName);
+
         StringBuilder sql = new StringBuilder();
         sql.append("DELETE FROM ").append(dialect.quoteIdentifier(tableName));
-        
+
         List<Object> parameters = new ArrayList<>();
-        
-         if (where != null && !where.isEmpty()) {
-             List<String> conditions = new ArrayList<>();
-             for (Map.Entry<String, Object> entry : where.entrySet()) {
-                 String field = entry.getKey();
-                 if (!isValidIdentifier(field)) continue;
-                 String quotedField = dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
-                 Object val = entry.getValue();
-                  if (val instanceof Map) {
-                       Map<?,?> opMap = (Map<?,?>) val;
-                        if (opMap.containsKey("eq")) {
-                            Object eqVal = opMap.get("eq");
-                            if (eqVal == null) {
-                                conditions.add(quotedField + " IS NULL");
-                            } else {
-                                conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                                parameters.add(eqVal);
-                            }
+
+        if (where != null && !where.isEmpty()) {
+            List<String> conditions = new ArrayList<>();
+            for (Map.Entry<String, Object> entry : where.entrySet()) {
+                String field = entry.getKey();
+                if (!isValidIdentifier(field)) continue;
+                String quotedField =
+                        dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(field);
+                Object val = entry.getValue();
+                if (val instanceof Map) {
+                    Map<?, ?> opMap = (Map<?, ?>) val;
+                    if (opMap.containsKey("eq")) {
+                        Object eqVal = opMap.get("eq");
+                        if (eqVal == null) {
+                            conditions.add(quotedField + " IS NULL");
+                        } else {
+                            conditions.add(
+                                    quotedField
+                                            + " = "
+                                            + dialect.getPlaceholder(parameters.size() + 1));
+                            parameters.add(eqVal);
                         }
-                  } else {
-                       if (val == null) {
-                           conditions.add(quotedField + " IS NULL");
-                       } else {
-                           conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
-                           parameters.add(val);
-                       }
-                  }
-             }
-             if (!conditions.isEmpty()) {
-                 sql.append(" WHERE ").append(String.join(" AND ", conditions));
-             }
-         }
+                    }
+                } else {
+                    if (val == null) {
+                        conditions.add(quotedField + " IS NULL");
+                    } else {
+                        conditions.add(
+                                quotedField
+                                        + " = "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
+                }
+            }
+            if (!conditions.isEmpty()) {
+                sql.append(" WHERE ").append(String.join(" AND ", conditions));
+            }
+        }
 
         if (dialect instanceof PostgresDialect) {
             sql.append(" RETURNING *");
@@ -432,9 +494,7 @@ public class SQLTranspiler {
         return true;
     }
 
-    /**
-     * Check if a value is a field reference: {"field": "columnName"}
-     */
+    /** Check if a value is a field reference: {"field": "columnName"} */
     private boolean isFieldReference(Object value) {
         if (!(value instanceof Map)) return false;
         Map<?, ?> map = (Map<?, ?>) value;
@@ -442,8 +502,8 @@ public class SQLTranspiler {
     }
 
     /**
-     * Resolve a field reference to a quoted column expression.
-     * Supports simple field names and "table.column" dot notation.
+     * Resolve a field reference to a quoted column expression. Supports simple field names and
+     * "table.column" dot notation.
      */
     private String quoteFieldReference(Object value, String defaultTable) {
         Map<?, ?> map = (Map<?, ?>) value;
@@ -465,7 +525,8 @@ public class SQLTranspiler {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> processWhere(Map<?, ?> whereMap, String tableAlias, List<Object> parameters) {
+    private List<String> processWhere(
+            Map<?, ?> whereMap, String tableAlias, List<Object> parameters) {
         List<String> conditions = new ArrayList<>();
 
         for (Map.Entry<?, ?> entry : whereMap.entrySet()) {
@@ -478,7 +539,8 @@ public class SQLTranspiler {
                     List<String> orParts = new ArrayList<>();
                     for (Object item : (List<?>) cond) {
                         if (item instanceof Map) {
-                            List<String> sub = processWhere((Map<?, ?>) item, tableAlias, parameters);
+                            List<String> sub =
+                                    processWhere((Map<?, ?>) item, tableAlias, parameters);
                             if (!sub.isEmpty()) {
                                 orParts.add("(" + String.join(" AND ", sub) + ")");
                             }
@@ -496,7 +558,8 @@ public class SQLTranspiler {
                 if (cond instanceof List) {
                     for (Object item : (List<?>) cond) {
                         if (item instanceof Map) {
-                            List<String> sub = processWhere((Map<?, ?>) item, tableAlias, parameters);
+                            List<String> sub =
+                                    processWhere((Map<?, ?>) item, tableAlias, parameters);
                             if (!sub.isEmpty()) {
                                 conditions.add("(" + String.join(" AND ", sub) + ")");
                             }
@@ -521,7 +584,8 @@ public class SQLTranspiler {
             if (!isValidIdentifier(key)) {
                 throw new IllegalArgumentException("Invalid field name in where clause: " + key);
             }
-            String quotedField = dialect.quoteIdentifier(tableAlias) + "." + dialect.quoteIdentifier(key);
+            String quotedField =
+                    dialect.quoteIdentifier(tableAlias) + "." + dialect.quoteIdentifier(key);
 
             if (cond instanceof Map) {
                 Map<?, ?> condMap = (Map<?, ?>) cond;
@@ -532,7 +596,10 @@ public class SQLTranspiler {
                     } else if (val == null) {
                         conditions.add(quotedField + " IS NULL");
                     } else {
-                        conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " = "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
@@ -543,7 +610,10 @@ public class SQLTranspiler {
                     } else if (val == null) {
                         conditions.add(quotedField + " IS NOT NULL");
                     } else {
-                        conditions.add(quotedField + " != " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " != "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
@@ -552,7 +622,10 @@ public class SQLTranspiler {
                     if (isFieldReference(val)) {
                         conditions.add(quotedField + " > " + quoteFieldReference(val, tableAlias));
                     } else {
-                        conditions.add(quotedField + " > " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " > "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
@@ -561,7 +634,10 @@ public class SQLTranspiler {
                     if (isFieldReference(val)) {
                         conditions.add(quotedField + " >= " + quoteFieldReference(val, tableAlias));
                     } else {
-                        conditions.add(quotedField + " >= " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " >= "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
@@ -570,7 +646,10 @@ public class SQLTranspiler {
                     if (isFieldReference(val)) {
                         conditions.add(quotedField + " < " + quoteFieldReference(val, tableAlias));
                     } else {
-                        conditions.add(quotedField + " < " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " < "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
@@ -579,12 +658,16 @@ public class SQLTranspiler {
                     if (isFieldReference(val)) {
                         conditions.add(quotedField + " <= " + quoteFieldReference(val, tableAlias));
                     } else {
-                        conditions.add(quotedField + " <= " + dialect.getPlaceholder(parameters.size() + 1));
+                        conditions.add(
+                                quotedField
+                                        + " <= "
+                                        + dialect.getPlaceholder(parameters.size() + 1));
                         parameters.add(val);
                     }
                 }
                 if (condMap.containsKey("like")) {
-                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    conditions.add(
+                            quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
                     parameters.add(condMap.get("like"));
                 }
                 if (condMap.containsKey("in")) {
@@ -616,15 +699,18 @@ public class SQLTranspiler {
                     }
                 }
                 if (condMap.containsKey("contains")) {
-                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    conditions.add(
+                            quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
                     parameters.add("%" + condMap.get("contains") + "%");
                 }
                 if (condMap.containsKey("starts")) {
-                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    conditions.add(
+                            quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
                     parameters.add(condMap.get("starts") + "%");
                 }
                 if (condMap.containsKey("ends")) {
-                    conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
+                    conditions.add(
+                            quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));
                     parameters.add("%" + condMap.get("ends"));
                 }
             } else {
@@ -632,7 +718,8 @@ public class SQLTranspiler {
                 if (cond == null) {
                     conditions.add(quotedField + " IS NULL");
                 } else {
-                    conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
+                    conditions.add(
+                            quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
                     parameters.add(cond);
                 }
             }
@@ -641,58 +728,100 @@ public class SQLTranspiler {
     }
 
     @SuppressWarnings("unchecked")
-    private void processIncludes(Map<?,?> includes, String parentTable, JsonQLSchema schema, List<String> selectParts, List<String> joinParts, List<Object> parameters) {
+    private void processIncludes(
+            Map<?, ?> includes,
+            String parentTable,
+            JsonQLSchema schema,
+            List<String> selectParts,
+            List<String> joinParts,
+            List<Object> parameters) {
         JsonQLTableSchema parentSchema = schema.tables.get(parentTable);
-        if (parentSchema == null) throw new IllegalArgumentException("Table schema not found for: " + parentTable);
+        if (parentSchema == null)
+            throw new IllegalArgumentException("Table schema not found for: " + parentTable);
 
-        for (Map.Entry<?,?> entry : includes.entrySet()) {
+        for (Map.Entry<?, ?> entry : includes.entrySet()) {
             String relationName = entry.getKey().toString();
             Map<String, Object> relQuery = (Map<String, Object>) entry.getValue();
 
             JsonQLRelation relation = parentSchema.relations.get(relationName);
-            if (relation == null) throw new IllegalArgumentException("Relation not found: " + relationName + " in table " + parentTable);
+            if (relation == null)
+                throw new IllegalArgumentException(
+                        "Relation not found: " + relationName + " in table " + parentTable);
 
             String targetTable = relation.target;
             String type = relation.type;
-            
-            String joinType = "LEFT JOIN"; 
+
+            String joinType = "LEFT JOIN";
             String quotedTarget = dialect.quoteIdentifier(targetTable);
             String quotedParent = dialect.quoteIdentifier(parentTable);
-            
+
             String condition = "";
             if ("belongsTo".equals(type)) {
-                String fk = relation.foreignKey != null ? relation.foreignKey : targetTable + "_id"; 
-                condition = quotedParent + "." + dialect.quoteIdentifier(fk) + " = " + quotedTarget + "." + dialect.quoteIdentifier("id");
+                String fk = relation.foreignKey != null ? relation.foreignKey : targetTable + "_id";
+                condition =
+                        quotedParent
+                                + "."
+                                + dialect.quoteIdentifier(fk)
+                                + " = "
+                                + quotedTarget
+                                + "."
+                                + dialect.quoteIdentifier("id");
             } else {
-                String fk = relation.foreignKey != null ? relation.foreignKey : parentTable + "_id"; 
-                condition = quotedTarget + "." + dialect.quoteIdentifier(fk) + " = " + quotedParent + "." + dialect.quoteIdentifier("id");
+                String fk = relation.foreignKey != null ? relation.foreignKey : parentTable + "_id";
+                condition =
+                        quotedTarget
+                                + "."
+                                + dialect.quoteIdentifier(fk)
+                                + " = "
+                                + quotedParent
+                                + "."
+                                + dialect.quoteIdentifier("id");
             }
-            
+
             joinParts.add(joinType + " " + quotedTarget + " ON " + condition);
 
             if (relQuery.containsKey("fields")) {
                 List<?> fields = (List<?>) relQuery.get("fields");
                 for (Object f : fields) {
                     String fieldName = f.toString();
-                    if (!isValidIdentifier(fieldName)) throw new IllegalArgumentException("Invalid field: " + fieldName);
-                    String alias = relationName + "__" + fieldName; 
-                    selectParts.add(quotedTarget + "." + dialect.quoteIdentifier(fieldName) + " AS " + dialect.quoteIdentifier(alias));
+                    if (!isValidIdentifier(fieldName))
+                        throw new IllegalArgumentException("Invalid field: " + fieldName);
+                    String alias = relationName + "__" + fieldName;
+                    selectParts.add(
+                            quotedTarget
+                                    + "."
+                                    + dialect.quoteIdentifier(fieldName)
+                                    + " AS "
+                                    + dialect.quoteIdentifier(alias));
                 }
             } else {
                 // No explicit fields — select all columns from target table schema
                 JsonQLTableSchema targetSchema = schema.tables.get(targetTable);
-                if (targetSchema != null && targetSchema.fields != null && !targetSchema.fields.isEmpty()) {
+                if (targetSchema != null
+                        && targetSchema.fields != null
+                        && !targetSchema.fields.isEmpty()) {
                     for (String fieldName : new java.util.TreeSet<>(targetSchema.fields.keySet())) {
                         String alias = relationName + "__" + fieldName;
-                        selectParts.add(quotedTarget + "." + dialect.quoteIdentifier(fieldName) + " AS " + dialect.quoteIdentifier(alias));
+                        selectParts.add(
+                                quotedTarget
+                                        + "."
+                                        + dialect.quoteIdentifier(fieldName)
+                                        + " AS "
+                                        + dialect.quoteIdentifier(alias));
                     }
                 } else {
                     selectParts.add(quotedTarget + ".*");
                 }
             }
-            
+
             if (relQuery.containsKey("include")) {
-                processIncludes((Map<?, ?>) relQuery.get("include"), targetTable, schema, selectParts, joinParts, parameters);
+                processIncludes(
+                        (Map<?, ?>) relQuery.get("include"),
+                        targetTable,
+                        schema,
+                        selectParts,
+                        joinParts,
+                        parameters);
             }
         }
     }

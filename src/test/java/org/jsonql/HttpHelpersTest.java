@@ -1,15 +1,12 @@
 package org.jsonql;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.Test;
 
-/**
- * Tests for JsonQLHttpHelpers — validates inferMutation, getIdFromQuery,
- * and buildRestMutation.
- */
+/** Tests for JsonQLHttpHelpers — validates inferMutation, getIdFromQuery, and buildRestMutation. */
 public class HttpHelpersTest {
 
     // ── inferMutation ──────────────────────────────────────────────────

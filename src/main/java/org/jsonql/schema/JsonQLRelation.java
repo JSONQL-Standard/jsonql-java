@@ -16,9 +16,9 @@ public class JsonQLRelation {
     }
 
     public JsonQLRelation(Map<String, Object> map) {
-         if (map.containsKey("type")) this.type = (String) map.get("type");
-         if (map.containsKey("target")) this.target = (String) map.get("target");
-         if (map.containsKey("foreignKey")) this.foreignKey = (String) map.get("foreignKey");
-         if (map.containsKey("allowInclude")) this.allowInclude = (Boolean) map.get("allowInclude");
+        if (map.containsKey("type")) this.type = (String) map.get("type");
+        if (map.containsKey("target")) this.target = (String) map.get("target");
+        if (map.containsKey("foreignKey")) this.foreignKey = (String) map.get("foreignKey");
+        if (map.containsKey("allowInclude")) this.allowInclude = (Boolean) map.get("allowInclude");
     }
 }

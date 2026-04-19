@@ -1,19 +1,18 @@
 package org.jsonql.adapter;
 
+import java.sql.Connection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import org.jsonql.JsonQLLifecycle;
 import org.jsonql.JsonQLLogger;
 import org.jsonql.cache.CacheProvider;
 import org.jsonql.schema.JsonQLSchema;
 
-import java.sql.Connection;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
-
 /**
  * Configuration for a JSONQL framework adapter.
  *
- * <p>Mirrors the adapter options pattern used in TS/Go/Python SDKs.</p>
+ * <p>Mirrors the adapter options pattern used in TS/Go/Python SDKs.
  */
 public class AdapterOptions {
 
@@ -36,8 +35,8 @@ public class AdapterOptions {
     public boolean debug = false;
 
     /**
-     * Table whitelist. If non-null, only these tables are allowed.
-     * Can be a list of table names or a mapping of URL-path → actual table name.
+     * Table whitelist. If non-null, only these tables are allowed. Can be a list of table names or
+     * a mapping of URL-path → actual table name.
      */
     public List<String> allowedTables;
 

@@ -2,12 +2,11 @@ package org.jsonql;
 
 import java.util.*;
 
-/**
- * Result of transpiling a JSONQL query into MongoDB operations.
- */
+/** Result of transpiling a JSONQL query into MongoDB operations. */
 public class MongoResult {
     public String collection;
-    public String operation; // "find", "insertOne", "insertMany", "updateMany", "deleteMany", "aggregate"
+    public String
+            operation; // "find", "insertOne", "insertMany", "updateMany", "deleteMany", "aggregate"
     public Map<String, Object> filter;
     public Map<String, Object> projection;
     public Map<String, Object> sort;

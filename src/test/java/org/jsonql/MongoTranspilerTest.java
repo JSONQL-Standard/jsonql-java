@@ -1,13 +1,13 @@
 package org.jsonql;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.*;
+import org.junit.Test;
 
 /**
- * Tests for MongoTranspiler — validates operator coverage, distinct support,
- * and unknown operator rejection.
+ * Tests for MongoTranspiler — validates operator coverage, distinct support, and unknown operator
+ * rejection.
  */
 public class MongoTranspilerTest {
 
@@ -17,10 +17,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testEqOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id", "name"),
-            "where", Map.of("id", Map.of("eq", 1))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id", "name"),
+                        "where", Map.of("id", Map.of("eq", 1)));
         MongoResult result = transpiler.transpile(query, "users");
         assertEquals("find", result.operation);
         assertEquals(1, result.filter.get("id"));
@@ -28,10 +28,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testNeqOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("status", Map.of("neq", "active"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("status", Map.of("neq", "active")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> statusFilter = (Map<?, ?>) result.filter.get("status");
         assertEquals("$ne", statusFilter.keySet().iterator().next());
@@ -40,10 +40,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testNeOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("status", Map.of("ne", "inactive"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("status", Map.of("ne", "inactive")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> statusFilter = (Map<?, ?>) result.filter.get("status");
         assertEquals("inactive", statusFilter.get("$ne"));
@@ -51,10 +51,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testGtGteLtLteOperators() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("age", Map.of("gt", 18, "lte", 65))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("age", Map.of("gt", 18, "lte", 65)));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> ageFilter = (Map<?, ?>) result.filter.get("age");
         assertEquals(18, ageFilter.get("$gt"));
@@ -63,10 +63,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testInOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("status", Map.of("in", List.of("active", "pending")))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("status", Map.of("in", List.of("active", "pending"))));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> statusFilter = (Map<?, ?>) result.filter.get("status");
         assertEquals(List.of("active", "pending"), statusFilter.get("$in"));
@@ -74,10 +74,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testNinOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("status", Map.of("nin", List.of("banned", "deleted")))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("status", Map.of("nin", List.of("banned", "deleted"))));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> statusFilter = (Map<?, ?>) result.filter.get("status");
         assertEquals(List.of("banned", "deleted"), statusFilter.get("$nin"));
@@ -85,10 +85,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testLikeOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("like", "%alice%"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("like", "%alice%")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> nameFilter = (Map<?, ?>) result.filter.get("name");
         assertEquals(".*alice.*", nameFilter.get("$regex"));
@@ -99,10 +99,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testContainsOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("contains", "alice"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("contains", "alice")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> nameFilter = (Map<?, ?>) result.filter.get("name");
         assertNotNull(nameFilter.get("$regex"));
@@ -111,10 +111,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testStartsOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("starts", "Al"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("starts", "Al")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> nameFilter = (Map<?, ?>) result.filter.get("name");
         String regex = nameFilter.get("$regex").toString();
@@ -123,10 +123,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testEndsOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("ends", "son"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("ends", "son")));
         MongoResult result = transpiler.transpile(query, "users");
         Map<?, ?> nameFilter = (Map<?, ?>) result.filter.get("name");
         String regex = nameFilter.get("$regex").toString();
@@ -137,13 +137,15 @@ public class MongoTranspilerTest {
 
     @Test
     public void testOrOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("or", List.of(
-                Map.of("status", Map.of("eq", "active")),
-                Map.of("age", Map.of("gt", 30))
-            ))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where",
+                                Map.of(
+                                        "or",
+                                        List.of(
+                                                Map.of("status", Map.of("eq", "active")),
+                                                Map.of("age", Map.of("gt", 30)))));
         MongoResult result = transpiler.transpile(query, "users");
         assertNotNull(result.filter.get("$or"));
         List<?> orList = (List<?>) result.filter.get("$or");
@@ -152,13 +154,15 @@ public class MongoTranspilerTest {
 
     @Test
     public void testAndOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("and", List.of(
-                Map.of("status", Map.of("eq", "active")),
-                Map.of("age", Map.of("gt", 18))
-            ))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where",
+                                Map.of(
+                                        "and",
+                                        List.of(
+                                                Map.of("status", Map.of("eq", "active")),
+                                                Map.of("age", Map.of("gt", 18)))));
         MongoResult result = transpiler.transpile(query, "users");
         assertNotNull(result.filter.get("$and"));
         List<?> andList = (List<?>) result.filter.get("$and");
@@ -167,10 +171,10 @@ public class MongoTranspilerTest {
 
     @Test
     public void testNotOperator() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("not", Map.of("status", Map.of("eq", "banned")))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("not", Map.of("status", Map.of("eq", "banned"))));
         MongoResult result = transpiler.transpile(query, "users");
         assertNotNull(result.filter.get("$nor"));
         List<?> norList = (List<?>) result.filter.get("$nor");
@@ -192,13 +196,11 @@ public class MongoTranspilerTest {
         assertFalse("Pipeline should not be empty", result.pipeline.isEmpty());
 
         // Check for $group stage
-        boolean hasGroup = result.pipeline.stream()
-                .anyMatch(s -> s.containsKey("$group"));
+        boolean hasGroup = result.pipeline.stream().anyMatch(s -> s.containsKey("$group"));
         assertTrue("Pipeline should have $group stage", hasGroup);
 
         // Check for $project stage
-        boolean hasProject = result.pipeline.stream()
-                .anyMatch(s -> s.containsKey("$project"));
+        boolean hasProject = result.pipeline.stream().anyMatch(s -> s.containsKey("$project"));
         assertTrue("Pipeline should have $project stage", hasProject);
     }
 
@@ -223,11 +225,9 @@ public class MongoTranspilerTest {
         MongoResult result = transpiler.transpile(query, "products");
         assertEquals("aggregate", result.operation);
         assertNotNull(result.pipeline);
-        boolean hasGroup = result.pipeline.stream()
-                .anyMatch(s -> s.containsKey("$group"));
+        boolean hasGroup = result.pipeline.stream().anyMatch(s -> s.containsKey("$group"));
         assertTrue("Pipeline should have $group stage", hasGroup);
-        boolean hasProject = result.pipeline.stream()
-                .anyMatch(s -> s.containsKey("$project"));
+        boolean hasProject = result.pipeline.stream().anyMatch(s -> s.containsKey("$project"));
         assertTrue("Pipeline should have $project stage", hasProject);
     }
 
@@ -235,19 +235,19 @@ public class MongoTranspilerTest {
 
     @Test(expected = JsonQLTranspileException.class)
     public void testUnknownOperatorThrows() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("fuzzy", "alice"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("fuzzy", "alice")));
         transpiler.transpile(query, "users");
     }
 
     @Test(expected = JsonQLTranspileException.class)
     public void testUnknownOperatorRegex() {
-        Map<String, Object> query = Map.of(
-            "fields", List.of("id"),
-            "where", Map.of("name", Map.of("$regex", "alice"))
-        );
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("$regex", "alice")));
         transpiler.transpile(query, "users");
     }
 

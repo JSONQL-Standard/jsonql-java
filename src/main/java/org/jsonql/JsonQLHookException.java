@@ -7,9 +7,8 @@ import java.util.Map;
 /**
  * Thrown from lifecycle hooks to signal an HTTP-level error.
  *
- * Carries an HTTP status code (e.g. 400, 403) and an optional list of
- * detail strings so that adapters can produce a structured error response
- * without inventing their own exception type.
+ * <p>Carries an HTTP status code (e.g. 400, 403) and an optional list of detail strings so that
+ * adapters can produce a structured error response without inventing their own exception type.
  *
  * <pre>
  *   throw new JsonQLHookException(403, "Access denied");
@@ -50,19 +49,18 @@ public class JsonQLHookException extends JsonQLException {
 
     /**
      * Build the standard JSONQL error response body map.
-     * <p>
-     * When detail errors are present, returns:
-     * {@code {"errors": [...], "status": N, "message": "..."}}
-     * <p>
-     * Otherwise returns: {@code {"error": "..."}}
+     *
+     * <p>When detail errors are present, returns: {@code {"errors": [...], "status": N, "message":
+     * "..."}}
+     *
+     * <p>Otherwise returns: {@code {"error": "..."}}
      */
     public Map<String, Object> toResponseBody() {
         if (hasErrors()) {
             return Map.of(
-                "errors", errors,
-                "status", status,
-                "message", getMessage()
-            );
+                    "errors", errors,
+                    "status", status,
+                    "message", getMessage());
         }
         return Map.of("error", getMessage());
     }

@@ -1,13 +1,13 @@
 package org.jsonql;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.*;
+import org.junit.Test;
 
 /**
- * Unit tests for the JsonQLParser — covers parse() validations,
- * operator support, and parser option enforcement.
+ * Unit tests for the JsonQLParser — covers parse() validations, operator support, and parser option
+ * enforcement.
  */
 public class ParserTest {
 
@@ -110,8 +110,10 @@ public class ParserTest {
     public void testWhereWithAndOr() {
         JsonQLParser parser = new JsonQLParser();
         Map<String, Object> query = new LinkedHashMap<>();
-        Map<String, Object> cond1 = Collections.singletonMap("status", Collections.singletonMap("eq", "active"));
-        Map<String, Object> cond2 = Collections.singletonMap("age", Collections.singletonMap("gt", 18));
+        Map<String, Object> cond1 =
+                Collections.singletonMap("status", Collections.singletonMap("eq", "active"));
+        Map<String, Object> cond2 =
+                Collections.singletonMap("age", Collections.singletonMap("gt", 18));
         Map<String, Object> where = Collections.singletonMap("and", Arrays.asList(cond1, cond2));
         query.put("where", where);
         parser.parse(query);
@@ -122,7 +124,8 @@ public class ParserTest {
         JsonQLParser parser = new JsonQLParser();
         Map<String, Object> query = new LinkedHashMap<>();
         Map<String, Object> where = new LinkedHashMap<>();
-        where.put("price", Collections.singletonMap("gt", Collections.singletonMap("field", "cost")));
+        where.put(
+                "price", Collections.singletonMap("gt", Collections.singletonMap("field", "cost")));
         query.put("where", where);
         parser.parse(query);
     }
@@ -244,9 +247,10 @@ public class ParserTest {
         agg.put("total", Collections.singletonMap("sum", "amount"));
         query.put("aggregate", agg);
 
-        Map<String, Object> where = Collections.singletonMap(
-            "status", Collections.singletonMap("in", Arrays.asList("active", "pending"))
-        );
+        Map<String, Object> where =
+                Collections.singletonMap(
+                        "status",
+                        Collections.singletonMap("in", Arrays.asList("active", "pending")));
         query.put("where", where);
 
         parser.parse(query);

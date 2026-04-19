@@ -1,21 +1,19 @@
 package org.jsonql;
 
+import static org.junit.Assert.*;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.sql.*;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.jsonql.dialect.GenericDialect;
 import org.jsonql.hydrator.ResultHydrator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.sql.*;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static org.junit.Assert.*;
 
 public class ExecutionTest {
 
@@ -32,15 +30,16 @@ public class ExecutionTest {
         } else {
             suitesDir = new File("../jsonql-spec/tests/suites");
         }
-        
+
         File dataFile = new File(suitesDir, "standard/data.json");
         if (!dataFile.exists()) {
             System.out.println("Data file not found, skipping setup");
             return;
         }
 
-        Map<String, List<Map<String, Object>>> dataset = mapper.readValue(dataFile, 
-            new TypeReference<Map<String, List<Map<String, Object>>>>(){});
+        Map<String, List<Map<String, Object>>> dataset =
+                mapper.readValue(
+                        dataFile, new TypeReference<Map<String, List<Map<String, Object>>>>() {});
 
         // 2. Setup DB
         connection = DriverManager.getConnection("jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
@@ -62,20 +61,29 @@ public class ExecutionTest {
                 if (val instanceof Integer) colType = "INT";
                 else if (val instanceof Double) colType = "DOUBLE";
                 else if (val instanceof Boolean) colType = "BOOLEAN";
-                else if (val instanceof Map || val instanceof List) colType = "TEXT"; // Use TEXT for JSON
-                
+                else if (val instanceof Map || val instanceof List)
+                    colType = "TEXT"; // Use TEXT for JSON
+
                 colDefs.add(col.getKey() + " " + colType);
                 colNames.add(col.getKey());
             }
 
-            String createSQL = "CREATE TABLE " + tableName + " (" + String.join(", ", colDefs) + ")";
+            String createSQL =
+                    "CREATE TABLE " + tableName + " (" + String.join(", ", colDefs) + ")";
             try (Statement stmt = connection.createStatement()) {
                 stmt.execute(createSQL);
             }
 
             // Insert data
             String placeholders = String.join(", ", Collections.nCopies(colNames.size(), "?"));
-            String insertSQL = "INSERT INTO " + tableName + " (" + String.join(", ", colNames) + ") VALUES (" + placeholders + ")";
+            String insertSQL =
+                    "INSERT INTO "
+                            + tableName
+                            + " ("
+                            + String.join(", ", colNames)
+                            + ") VALUES ("
+                            + placeholders
+                            + ")";
 
             try (PreparedStatement pstmt = connection.prepareStatement(insertSQL)) {
                 for (Map<String, Object> row : rows) {
@@ -117,49 +125,63 @@ public class ExecutionTest {
             fail("Execution tests not found");
         }
 
-        List<ExecutionTestCase> tests = mapper.readValue(execFile, new TypeReference<List<ExecutionTestCase>>(){});
+        List<ExecutionTestCase> tests =
+                mapper.readValue(execFile, new TypeReference<List<ExecutionTestCase>>() {});
         SQLTranspiler transpiler = new SQLTranspiler(new GenericDialect());
 
         for (ExecutionTestCase tc : tests) {
             System.out.println("Running execution test: " + tc.id);
-            
+
             // Transpile
             SQLTranspiler.TranspilationResult result = transpiler.transpile(tc.query, tc.tableName);
-            
+
             // Execute
             try (PreparedStatement pstmt = connection.prepareStatement(result.sql)) {
                 for (int i = 0; i < result.parameters.size(); i++) {
                     pstmt.setObject(i + 1, result.parameters.get(i));
                 }
-                
+
                 try (ResultSet rs = pstmt.executeQuery()) {
                     ResultHydrator hydrator = new ResultHydrator();
                     List<Map<String, Object>> rawResults = hydrator.hydrate(rs);
-                    
+
                     // Normalize keys to lowercase for test comparison (H2 returns uppercase)
-                    List<Map<String, Object>> actualResults = rawResults.stream().map(row -> {
-                        Map<String, Object> newRow = new HashMap<>();
-                        for (Map.Entry<String, Object> e : row.entrySet()) {
-                            newRow.put(e.getKey().toLowerCase(), e.getValue());
-                        }
-                        return newRow;
-                    }).collect(Collectors.toList());
-                    
+                    List<Map<String, Object>> actualResults =
+                            rawResults.stream()
+                                    .map(
+                                            row -> {
+                                                Map<String, Object> newRow = new HashMap<>();
+                                                for (Map.Entry<String, Object> e : row.entrySet()) {
+                                                    newRow.put(
+                                                            e.getKey().toLowerCase(), e.getValue());
+                                                }
+                                                return newRow;
+                                            })
+                                    .collect(Collectors.toList());
+
                     // Compare
-                    assertEquals("Test " + tc.id + " row count mismatch", tc.expectedResult.size(), actualResults.size());
-                    
+                    assertEquals(
+                            "Test " + tc.id + " row count mismatch",
+                            tc.expectedResult.size(),
+                            actualResults.size());
+
                     for (int i = 0; i < tc.expectedResult.size(); i++) {
                         Map<String, Object> expected = tc.expectedResult.get(i);
                         Map<String, Object> actual = actualResults.get(i);
-                        
+
                         for (Map.Entry<String, Object> entry : expected.entrySet()) {
-                            assertTrue("Row " + i + " missing key " + entry.getKey(), actual.containsKey(entry.getKey()));
+                            assertTrue(
+                                    "Row " + i + " missing key " + entry.getKey(),
+                                    actual.containsKey(entry.getKey()));
                             Object expVal = entry.getValue();
                             Object actVal = actual.get(entry.getKey());
-                            
-                            // Simple string comparison for now to handle type diffs (e.g. Integer vs Long)
-                            assertEquals("Row " + i + " key " + entry.getKey() + " mismatch", 
-                                String.valueOf(expVal), String.valueOf(actVal));
+
+                            // Simple string comparison for now to handle type diffs (e.g. Integer
+                            // vs Long)
+                            assertEquals(
+                                    "Row " + i + " key " + entry.getKey() + " mismatch",
+                                    String.valueOf(expVal),
+                                    String.valueOf(actVal));
                         }
                     }
                 }

@@ -1,20 +1,20 @@
 package org.jsonql.adapter.spring;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.jsonql.JsonQLException;
 import org.jsonql.JsonQLValidationException;
 import org.jsonql.adapter.MongoAdapter;
 import org.jsonql.adapter.MongoAdapterOptions;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Spring Boot / Spring MVC adapter for JSONQL with MongoDB.
  *
- * <p>Wraps {@link MongoAdapter} to provide the same error-handling
- * and {@link ResponseResult} pattern as {@link SpringAdapter}.</p>
+ * <p>Wraps {@link MongoAdapter} to provide the same error-handling and {@link ResponseResult}
+ * pattern as {@link SpringAdapter}.
  *
  * <h3>Usage in a Spring Boot {@code @RestController}:</h3>
+ *
  * <pre>
  * &#64;RestController
  * &#64;RequestMapping("/api")
@@ -58,9 +58,9 @@ public class SpringMongoAdapter {
     /**
      * Handle a JSONQL MongoDB request and return a framework-neutral response.
      *
-     * @param body       Parsed request body
+     * @param body Parsed request body
      * @param httpMethod HTTP method string
-     * @param pathName   URL path segment (collection name)
+     * @param pathName URL path segment (collection name)
      * @return ResponseResult with status code and body
      */
     public SpringAdapter.ResponseResult handle(

@@ -5,21 +5,18 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.result.DeleteResult;
-import com.mongodb.client.result.InsertOneResult;
 import com.mongodb.client.result.UpdateResult;
-
-import org.bson.Document;
-import org.bson.types.ObjectId;
-
 import java.util.*;
+import org.bson.Document;
 
 /**
  * Concrete MongoDB driver implementation using the MongoDB Java Sync Driver.
  *
- * <p>Implements {@link MongoDriverInterface} by dispatching {@link MongoResult}
- * operations to the appropriate MongoDB client methods.</p>
+ * <p>Implements {@link MongoDriverInterface} by dispatching {@link MongoResult} operations to the
+ * appropriate MongoDB client methods.
  *
  * <h3>Usage:</h3>
+ *
  * <pre>
  * MongoDriver driver = MongoDriver.connect("mongodb://localhost:27017", "mydb");
  * // or
@@ -31,17 +28,13 @@ public class MongoDriver implements MongoDriverInterface {
     private final MongoClient client;
     private final MongoDatabase database;
 
-    /**
-     * Create a MongoDriver from an existing MongoClient and database name.
-     */
+    /** Create a MongoDriver from an existing MongoClient and database name. */
     public MongoDriver(MongoClient client, String dbName) {
         this.client = client;
         this.database = client.getDatabase(dbName);
     }
 
-    /**
-     * Create a MongoDriver from an existing MongoDatabase.
-     */
+    /** Create a MongoDriver from an existing MongoDatabase. */
     public MongoDriver(MongoClient client, MongoDatabase database) {
         this.client = client;
         this.database = database;
@@ -50,7 +43,7 @@ public class MongoDriver implements MongoDriverInterface {
     /**
      * Connect to MongoDB and return a MongoDriver. Returns null on failure.
      *
-     * @param uri    MongoDB connection URI
+     * @param uri MongoDB connection URI
      * @param dbName database name
      * @return a MongoDriver, or null if connection fails
      */
@@ -66,7 +59,7 @@ public class MongoDriver implements MongoDriverInterface {
     /**
      * Connect to MongoDB and return a MongoDriver. Throws on failure.
      *
-     * @param uri    MongoDB connection URI
+     * @param uri MongoDB connection URI
      * @param dbName database name
      * @return a MongoDriver
      * @throws RuntimeException if connection fails
@@ -76,13 +69,12 @@ public class MongoDriver implements MongoDriverInterface {
             MongoClient client = MongoClients.create(uri);
             return new MongoDriver(client, dbName);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to connect to MongoDB at " + uri + ": " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to connect to MongoDB at " + uri + ": " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Return the underlying MongoDatabase instance.
-     */
+    /** Return the underlying MongoDatabase instance. */
     public MongoDatabase getDatabase() {
         return database;
     }
@@ -192,9 +184,7 @@ public class MongoDriver implements MongoDriverInterface {
         return result;
     }
 
-    /**
-     * Convert a MongoDB Document to a plain Map, removing _id.
-     */
+    /** Convert a MongoDB Document to a plain Map, removing _id. */
     private static Map<String, Object> cleanDocument(Document doc) {
         Map<String, Object> map = new LinkedHashMap<>(doc);
         map.remove("_id");

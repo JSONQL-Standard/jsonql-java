@@ -1,20 +1,20 @@
 package org.jsonql.adapter.jakarta;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.jsonql.JsonQLException;
 import org.jsonql.JsonQLValidationException;
 import org.jsonql.adapter.MongoAdapter;
 import org.jsonql.adapter.MongoAdapterOptions;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Jakarta EE / JAX-RS adapter for JSONQL with MongoDB.
  *
- * <p>Wraps {@link MongoAdapter} to provide the same error-handling
- * and {@link ResponseResult} pattern as {@link JakartaAdapter}.</p>
+ * <p>Wraps {@link MongoAdapter} to provide the same error-handling and {@link ResponseResult}
+ * pattern as {@link JakartaAdapter}.
  *
  * <h3>Usage in a JAX-RS resource:</h3>
+ *
  * <pre>
  * &#64;Path("/api")
  * &#64;Produces(MediaType.APPLICATION_JSON)
@@ -51,9 +51,9 @@ public class JakartaMongoAdapter {
     /**
      * Handle a JSONQL MongoDB request and return a framework-neutral response.
      *
-     * @param body       Parsed request body
+     * @param body Parsed request body
      * @param httpMethod HTTP method string
-     * @param pathName   URL path segment (collection name)
+     * @param pathName URL path segment (collection name)
      * @return ResponseResult with status code and body
      */
     public JakartaAdapter.ResponseResult handle(

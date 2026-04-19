@@ -1,9 +1,5 @@
 package org.jsonql;
 
-import org.jsonql.cache.CacheProvider;
-import org.jsonql.dialect.*;
-import org.jsonql.hydrator.ResultHydrator;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -14,6 +10,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jsonql.cache.CacheProvider;
+import org.jsonql.dialect.*;
+import org.jsonql.hydrator.ResultHydrator;
 
 public class JsonQLEngine {
 
@@ -41,12 +40,17 @@ public class JsonQLEngine {
         this(transpiler, schema, null);
     }
 
-    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema, JsonQLLogger logger) {
+    public JsonQLEngine(
+            SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema, JsonQLLogger logger) {
         this(transpiler, schema, logger, null, 60);
     }
 
-    public JsonQLEngine(SQLTranspiler transpiler, org.jsonql.schema.JsonQLSchema schema,
-                        JsonQLLogger logger, CacheProvider cache, int cacheTtl) {
+    public JsonQLEngine(
+            SQLTranspiler transpiler,
+            org.jsonql.schema.JsonQLSchema schema,
+            JsonQLLogger logger,
+            CacheProvider cache,
+            int cacheTtl) {
         this.transpiler = transpiler;
         this.hydrator = new ResultHydrator();
         this.schema = schema;
@@ -63,13 +67,32 @@ public class JsonQLEngine {
         return "\"" + identifier + "\"";
     }
 
-    private static final Set<String> ALLOWED_QUERY_KEYS = Set.of(
-        "version", "from", "where", "sort", "limit", "skip", "offset",
-        "fields", "include", "groupBy", "distinct", "aggregate",
-        "op", "data", "patch", "insert", "delete"
-    );
+    private static final Set<String> ALLOWED_QUERY_KEYS =
+            Set.of(
+                    "version",
+                    "from",
+                    "where",
+                    "sort",
+                    "limit",
+                    "skip",
+                    "offset",
+                    "fields",
+                    "include",
+                    "groupBy",
+                    "distinct",
+                    "aggregate",
+                    "op",
+                    "data",
+                    "patch",
+                    "insert",
+                    "delete");
 
-    public List<Map<String, Object>> execute(Connection conn, String defaultTable, Map<String, Object> query, JsonQLLifecycle lifecycle) throws SQLException {
+    public List<Map<String, Object>> execute(
+            Connection conn,
+            String defaultTable,
+            Map<String, Object> query,
+            JsonQLLifecycle lifecycle)
+            throws SQLException {
         // Validation: Version check
         if (query.containsKey("version")) {
             Object v = query.get("version");
@@ -141,8 +164,10 @@ public class JsonQLEngine {
                 for (Object val : ((Map<?, ?>) agg).values()) {
                     if (val instanceof Map) {
                         for (Object fieldRef : ((Map<?, ?>) val).values()) {
-                            if (fieldRef instanceof String && !isValidIdentifier((String) fieldRef)) {
-                                throw new IllegalArgumentException("Invalid aggregate field name: " + fieldRef);
+                            if (fieldRef instanceof String
+                                    && !isValidIdentifier((String) fieldRef)) {
+                                throw new IllegalArgumentException(
+                                        "Invalid aggregate field name: " + fieldRef);
                             }
                         }
                     }
@@ -160,10 +185,13 @@ public class JsonQLEngine {
         }
 
         // 2. Determine Operation Type
-        boolean isMutation = query.containsKey("data") || query.containsKey("patch") || query.containsKey("insert") || 
-                            (query.containsKey("delete") && !query.containsKey("fields")); 
-                            // Basic heuristic, can be improved
-        
+        boolean isMutation =
+                query.containsKey("data")
+                        || query.containsKey("patch")
+                        || query.containsKey("insert")
+                        || (query.containsKey("delete") && !query.containsKey("fields"));
+        // Basic heuristic, can be improved
+
         String commandType = isMutation ? "MUTATION" : "SELECT";
         logger.debug("Executing %s on table %s", commandType, table);
 
@@ -175,18 +203,28 @@ public class JsonQLEngine {
         // 4. Determine mutation sub-type and fire before-mutation hooks
         String mutationOp = null;
         if (isMutation) {
-            if (query.containsKey("delete") || (query.containsKey("where") && !query.containsKey("data") && !query.containsKey("patch"))) {
+            if (query.containsKey("delete")
+                    || (query.containsKey("where")
+                            && !query.containsKey("data")
+                            && !query.containsKey("patch"))) {
                 mutationOp = "delete";
-            } else if (query.containsKey("patch") || (query.containsKey("where") && query.containsKey("data"))) {
+            } else if (query.containsKey("patch")
+                    || (query.containsKey("where") && query.containsKey("data"))) {
                 mutationOp = "update";
             } else {
                 mutationOp = "create";
             }
             if (lifecycle != null) {
                 switch (mutationOp) {
-                    case "create": query = lifecycle.beforeCreate(query); break;
-                    case "update": query = lifecycle.beforeUpdate(query); break;
-                    case "delete": query = lifecycle.beforeDelete(query); break;
+                    case "create":
+                        query = lifecycle.beforeCreate(query);
+                        break;
+                    case "update":
+                        query = lifecycle.beforeUpdate(query);
+                        break;
+                    case "delete":
+                        query = lifecycle.beforeDelete(query);
+                        break;
                 }
             }
         }
@@ -209,26 +247,34 @@ public class JsonQLEngine {
                 result = transpiler.transpile(query, table, schema);
             } else {
                 switch (mutationOp) {
-                    case "delete": {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> where = (Map<String, Object>) query.get("where");
-                        result = transpiler.transpileDelete(where, table);
-                        break;
-                    }
-                    case "update": {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> patchData = (Map<String, Object>) (query.containsKey("patch") ? query.get("patch") : query.get("data"));
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> where = (Map<String, Object>) query.get("where");
-                        result = transpiler.transpileUpdate(patchData, where, table);
-                        break;
-                    }
-                    default: {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> insertDataMap2 = (Map<String, Object>) query.get("data");
-                        result = transpiler.transpileInsert(insertDataMap2, table);
-                        break;
-                    }
+                    case "delete":
+                        {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> where = (Map<String, Object>) query.get("where");
+                            result = transpiler.transpileDelete(where, table);
+                            break;
+                        }
+                    case "update":
+                        {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> patchData =
+                                    (Map<String, Object>)
+                                            (query.containsKey("patch")
+                                                    ? query.get("patch")
+                                                    : query.get("data"));
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> where = (Map<String, Object>) query.get("where");
+                            result = transpiler.transpileUpdate(patchData, where, table);
+                            break;
+                        }
+                    default:
+                        {
+                            @SuppressWarnings("unchecked")
+                            Map<String, Object> insertDataMap2 =
+                                    (Map<String, Object>) query.get("data");
+                            result = transpiler.transpileInsert(insertDataMap2, table);
+                            break;
+                        }
                 }
             }
             // Cache SELECT transpilation results
@@ -251,7 +297,8 @@ public class JsonQLEngine {
         // 6. Execute
         List<Map<String, Object>> data;
         boolean isNonReturningDialect = !transpiler.getDialect().supportsReturning();
-        boolean isInsertMutation = isMutation && result.sql.toUpperCase().trim().startsWith("INSERT");
+        boolean isInsertMutation =
+                isMutation && result.sql.toUpperCase().trim().startsWith("INSERT");
         boolean isMssql = "mssql".equals(transpiler.getDialect().getName());
 
         // For MSSQL: wrap INSERT with IDENTITY_INSERT ON/OFF only when data contains an explicit PK
@@ -260,17 +307,24 @@ public class JsonQLEngine {
             pk = schema.tables.get(table).primaryKey;
         }
         @SuppressWarnings("unchecked")
-        Map<String, Object> insertData = isMutation && query.containsKey("data") ? (Map<String, Object>) query.get("data") : null;
-        boolean needsIdentityInsert = isInsertMutation && isMssql && insertData != null && insertData.containsKey(pk);
+        Map<String, Object> insertData =
+                isMutation && query.containsKey("data")
+                        ? (Map<String, Object>) query.get("data")
+                        : null;
+        boolean needsIdentityInsert =
+                isInsertMutation && isMssql && insertData != null && insertData.containsKey(pk);
         if (needsIdentityInsert) {
             try {
                 conn.createStatement().execute("SET IDENTITY_INSERT [" + table + "] ON");
-            } catch (Exception ignored) { /* table may not have identity column */ }
+            } catch (Exception ignored) {
+                /* table may not have identity column */
+            }
         }
 
-        try (PreparedStatement stmt = isInsertMutation && isNonReturningDialect
-                ? conn.prepareStatement(result.sql, Statement.RETURN_GENERATED_KEYS)
-                : conn.prepareStatement(result.sql)) {
+        try (PreparedStatement stmt =
+                isInsertMutation && isNonReturningDialect
+                        ? conn.prepareStatement(result.sql, Statement.RETURN_GENERATED_KEYS)
+                        : conn.prepareStatement(result.sql)) {
             for (int i = 0; i < result.parameters.size(); i++) {
                 stmt.setObject(i + 1, result.parameters.get(i));
             }
@@ -292,7 +346,8 @@ public class JsonQLEngine {
         if (needsIdentityInsert) {
             try {
                 conn.createStatement().execute("SET IDENTITY_INSERT [" + table + "] OFF");
-            } catch (Exception ignored) { }
+            } catch (Exception ignored) {
+            }
         }
 
         // Lifecycle: afterExecute
@@ -312,9 +367,15 @@ public class JsonQLEngine {
         // Lifecycle: after-mutation hooks
         if (isMutation && lifecycle != null && mutationOp != null) {
             switch (mutationOp) {
-                case "create": lifecycle.afterCreate(query, data); break;
-                case "update": lifecycle.afterUpdate(query, data); break;
-                case "delete": lifecycle.afterDelete(query, data); break;
+                case "create":
+                    lifecycle.afterCreate(query, data);
+                    break;
+                case "update":
+                    lifecycle.afterUpdate(query, data);
+                    break;
+                case "delete":
+                    lifecycle.afterDelete(query, data);
+                    break;
             }
         }
 
@@ -325,8 +386,12 @@ public class JsonQLEngine {
 
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> fetchMutationResult(
-            Connection conn, PreparedStatement mutationStmt,
-            Map<String, Object> query, String table, boolean isInsert) throws SQLException {
+            Connection conn,
+            PreparedStatement mutationStmt,
+            Map<String, Object> query,
+            String table,
+            boolean isInsert)
+            throws SQLException {
 
         if (isInsert) {
             // INSERT: find the inserted row by generated key or explicit id
@@ -380,7 +445,8 @@ public class JsonQLEngine {
 
         Map<String, Object> selectQuery = new HashMap<>();
         selectQuery.put("where", where);
-        SQLTranspiler.TranspilationResult selectResult = transpiler.transpile(selectQuery, table, schema);
+        SQLTranspiler.TranspilationResult selectResult =
+                transpiler.transpile(selectQuery, table, schema);
 
         try (PreparedStatement ps = conn.prepareStatement(selectResult.sql)) {
             for (int i = 0; i < selectResult.parameters.size(); i++) {
@@ -397,12 +463,16 @@ public class JsonQLEngine {
     /**
      * Execute a {@link JsonQLRequestNormalizer.NormalizedRequest} with lifecycle hooks.
      *
-     * @param conn       JDBC connection
-     * @param request    normalized request (from {@link JsonQLRequestNormalizer#normalize})
-     * @param lifecycle  lifecycle hooks (may be null)
+     * @param conn JDBC connection
+     * @param request normalized request (from {@link JsonQLRequestNormalizer#normalize})
+     * @param lifecycle lifecycle hooks (may be null)
      * @return a {@link JsonQLResult} wrapping the data and operation metadata
      */
-    public JsonQLResult executeRequest(Connection conn, JsonQLRequestNormalizer.NormalizedRequest request, JsonQLLifecycle lifecycle) throws SQLException {
+    public JsonQLResult executeRequest(
+            Connection conn,
+            JsonQLRequestNormalizer.NormalizedRequest request,
+            JsonQLLifecycle lifecycle)
+            throws SQLException {
         String table = request.getTable();
         if (table == null) {
             throw new IllegalArgumentException("Table name required");
@@ -411,10 +481,10 @@ public class JsonQLEngine {
         return new JsonQLResult(results, request.isMutation());
     }
 
-    /**
-     * Execute a {@link JsonQLRequestNormalizer.NormalizedRequest} without lifecycle hooks.
-     */
-    public JsonQLResult executeRequest(Connection conn, JsonQLRequestNormalizer.NormalizedRequest request) throws SQLException {
+    /** Execute a {@link JsonQLRequestNormalizer.NormalizedRequest} without lifecycle hooks. */
+    public JsonQLResult executeRequest(
+            Connection conn, JsonQLRequestNormalizer.NormalizedRequest request)
+            throws SQLException {
         return executeRequest(conn, request, null);
     }
 
@@ -424,7 +494,7 @@ public class JsonQLEngine {
      * Create an engine for the given SQL dialect and schema.
      *
      * @param dialectType one of "postgres", "mysql", "sqlite"
-     * @param schema      optional schema for validation and relationships
+     * @param schema optional schema for validation and relationships
      * @return a configured engine
      */
     public static JsonQLEngine create(String dialectType, org.jsonql.schema.JsonQLSchema schema) {
@@ -438,6 +508,7 @@ public class JsonQLEngine {
 
     /**
      * Fluent builder for {@link JsonQLEngine}.
+     *
      * <pre>
      * JsonQLEngine engine = JsonQLEngine.builder()
      *     .postgres()
@@ -452,9 +523,20 @@ public class JsonQLEngine {
         private CacheProvider cache;
         private int cacheTtl = 60;
 
-        public Builder postgres()  { this.dialect = new PostgresDialect(); return this; }
-        public Builder mysql()     { this.dialect = new MySQLDialect();    return this; }
-        public Builder sqlite()    { this.dialect = new SQLiteDialect();   return this; }
+        public Builder postgres() {
+            this.dialect = new PostgresDialect();
+            return this;
+        }
+
+        public Builder mysql() {
+            this.dialect = new MySQLDialect();
+            return this;
+        }
+
+        public Builder sqlite() {
+            this.dialect = new SQLiteDialect();
+            return this;
+        }
 
         public Builder dialect(SQLDialect dialect) {
             this.dialect = dialect;
@@ -463,11 +545,20 @@ public class JsonQLEngine {
 
         public Builder dialect(String type) {
             switch (type.toLowerCase()) {
-                case "postgres": case "postgresql": return postgres();
-                case "mysql":    return mysql();
-                case "sqlite":   return sqlite();
-                case "mssql": case "sqlserver": this.dialect = new MSSQLDialect(); return this;
-                default: this.dialect = new GenericDialect(); return this;
+                case "postgres":
+                case "postgresql":
+                    return postgres();
+                case "mysql":
+                    return mysql();
+                case "sqlite":
+                    return sqlite();
+                case "mssql":
+                case "sqlserver":
+                    this.dialect = new MSSQLDialect();
+                    return this;
+                default:
+                    this.dialect = new GenericDialect();
+                    return this;
             }
         }
 
@@ -499,12 +590,27 @@ public class JsonQLEngine {
         }
     }
 
-    private static final Set<String> VALID_WHERE_OPERATORS = Set.of(
-        "eq", "ne", "neq", "gt", "gte", "lt", "lte",
-        "like", "ilike", "in", "nin", "between",
-        "is", "not", "contains", "startsWith", "endsWith",
-        "starts", "ends"
-    );
+    private static final Set<String> VALID_WHERE_OPERATORS =
+            Set.of(
+                    "eq",
+                    "ne",
+                    "neq",
+                    "gt",
+                    "gte",
+                    "lt",
+                    "lte",
+                    "like",
+                    "ilike",
+                    "in",
+                    "nin",
+                    "between",
+                    "is",
+                    "not",
+                    "contains",
+                    "startsWith",
+                    "endsWith",
+                    "starts",
+                    "ends");
 
     private void validateWhereOperators(Object where) {
         if (!(where instanceof Map)) return;
@@ -530,7 +636,8 @@ public class JsonQLEngine {
                 for (Object opKey : ops.keySet()) {
                     String op = opKey.toString();
                     if (!VALID_WHERE_OPERATORS.contains(op)) {
-                        throw new IllegalArgumentException("Unknown operator \"" + op + "\" in where clause");
+                        throw new IllegalArgumentException(
+                                "Unknown operator \"" + op + "\" in where clause");
                     }
                 }
             }

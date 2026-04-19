@@ -8,8 +8,8 @@ import java.util.Map;
 /**
  * Database driver abstraction for JSONQL.
  *
- * Implementations manage a database connection and execute SQL queries/commands.
- * This mirrors the Go SDK's {@code Driver} interface for cross-SDK consistency.
+ * <p>Implementations manage a database connection and execute SQL queries/commands. This mirrors
+ * the Go SDK's {@code Driver} interface for cross-SDK consistency.
  *
  * <pre>
  * JsonQLDriver driver = new SqliteDriver("./my.db");
@@ -21,7 +21,7 @@ public interface JsonQLDriver extends AutoCloseable {
     /**
      * Execute a SELECT query and return the result rows.
      *
-     * @param sql        the SQL query string
+     * @param sql the SQL query string
      * @param parameters bind parameters
      * @return list of rows, each row is a column-name → value map
      * @throws SQLException if the query fails
@@ -31,21 +31,16 @@ public interface JsonQLDriver extends AutoCloseable {
     /**
      * Execute a non-SELECT SQL statement (INSERT, UPDATE, DELETE).
      *
-     * @param sql        the SQL statement
+     * @param sql the SQL statement
      * @param parameters bind parameters
      * @return the number of rows affected
      * @throws SQLException if the execution fails
      */
     int execute(String sql, List<Object> parameters) throws SQLException;
 
-    /**
-     * Return the SQL dialect name (e.g. "sqlite", "postgres", "mysql").
-     */
+    /** Return the SQL dialect name (e.g. "sqlite", "postgres", "mysql"). */
     String dialect();
 
-    /**
-     * Return the underlying JDBC connection.
-     * Useful for advanced scenarios or transactions.
-     */
+    /** Return the underlying JDBC connection. Useful for advanced scenarios or transactions. */
     Connection getConnection();
 }

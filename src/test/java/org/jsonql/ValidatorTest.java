@@ -1,21 +1,20 @@
 package org.jsonql;
 
-import org.jsonql.schema.JsonQLSchema;
-import org.jsonql.schema.JsonQLTableSchema;
-import org.jsonql.schema.JsonQLFieldSchema;
-import org.jsonql.schema.JsonQLRelation;
-import org.jsonql.validator.JsonQLValidator;
-import org.jsonql.validator.JsonQLValidator.ValidationResult;
-
-import org.junit.Before;
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.*;
+import org.jsonql.schema.JsonQLFieldSchema;
+import org.jsonql.schema.JsonQLRelation;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
+import org.jsonql.validator.JsonQLValidator;
+import org.jsonql.validator.JsonQLValidator.ValidationResult;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
- * Unit tests for JsonQLValidator — covers field permissions,
- * aggregate validation, relation validation, and unknown field rejection.
+ * Unit tests for JsonQLValidator — covers field permissions, aggregate validation, relation
+ * validation, and unknown field rejection.
  */
 public class ValidatorTest {
 
@@ -120,7 +119,9 @@ public class ValidatorTest {
     public void testFilterBlocked() {
         JsonQLValidator v = new JsonQLValidator(schema, "users");
         Map<String, Object> query = new LinkedHashMap<>();
-        query.put("where", Collections.singletonMap("email", Collections.singletonMap("eq", "a@b.com")));
+        query.put(
+                "where",
+                Collections.singletonMap("email", Collections.singletonMap("eq", "a@b.com")));
         ValidationResult result = v.validate(query);
         assertFalse("Expected invalid — email not filterable", result.valid);
     }

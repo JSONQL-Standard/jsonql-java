@@ -4,17 +4,27 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * Converts JSONQL queries and mutations into MongoDB operation descriptors.
- * Produces MongoResult objects containing filter documents, projections,
- * sort specs, and aggregation pipelines.
+ * Converts JSONQL queries and mutations into MongoDB operation descriptors. Produces MongoResult
+ * objects containing filter documents, projections, sort specs, and aggregation pipelines.
  */
 public class MongoTranspiler {
 
     /** Known WHERE operators — anything else raises an error. */
-    private static final Set<String> KNOWN_OPS = Set.of(
-        "eq", "neq", "ne", "gt", "gte", "lt", "lte",
-        "like", "in", "nin", "contains", "starts", "ends"
-    );
+    private static final Set<String> KNOWN_OPS =
+            Set.of(
+                    "eq",
+                    "neq",
+                    "ne",
+                    "gt",
+                    "gte",
+                    "lt",
+                    "lte",
+                    "like",
+                    "in",
+                    "nin",
+                    "contains",
+                    "starts",
+                    "ends");
 
     public MongoResult transpile(Map<String, Object> query, String collection) {
         MongoResult result = new MongoResult(collection, "find");
@@ -42,7 +52,10 @@ public class MongoTranspiler {
         // SORT
         if (query.containsKey("sort")) {
             Object sort = query.get("sort");
-            if (sort != null && !(sort instanceof String) && !(sort instanceof List) && !(sort instanceof Map)) {
+            if (sort != null
+                    && !(sort instanceof String)
+                    && !(sort instanceof List)
+                    && !(sort instanceof Map)) {
                 throw new IllegalArgumentException("sort must be a string, object, or array");
             }
             Map<String, Object> sortDoc = new LinkedHashMap<>();
@@ -202,12 +215,22 @@ public class MongoTranspiler {
                                     if ("*".equals(field)) {
                                         groupStage.put(alias, Map.of("$sum", 1));
                                     } else {
-                                        groupStage.put(alias, Map.of("$sum",
-                                            Map.of("$cond", java.util.Arrays.asList(
-                                                Map.of("$ne", java.util.Arrays.asList("$" + field, null)),
-                                                1, 0
-                                            ))
-                                        ));
+                                        groupStage.put(
+                                                alias,
+                                                Map.of(
+                                                        "$sum",
+                                                        Map.of(
+                                                                "$cond",
+                                                                java.util.Arrays.asList(
+                                                                        Map.of(
+                                                                                "$ne",
+                                                                                java.util.Arrays
+                                                                                        .asList(
+                                                                                                "$"
+                                                                                                        + field,
+                                                                                                null)),
+                                                                        1,
+                                                                        0))));
                                     }
                                     break;
                                 case "sum":
@@ -258,7 +281,8 @@ public class MongoTranspiler {
         return result;
     }
 
-    public MongoResult transpileUpdate(Map<String, Object> data, Map<String, Object> where, String collection) {
+    public MongoResult transpileUpdate(
+            Map<String, Object> data, Map<String, Object> where, String collection) {
         MongoResult result = new MongoResult(collection, "updateMany");
         if (where != null) {
             result.filter = processWhere(where);
@@ -361,9 +385,8 @@ public class MongoTranspiler {
                 }
                 if (condMap.containsKey("like")) {
                     handled = true;
-                    String pattern = condMap.get("like").toString()
-                            .replace("%", ".*")
-                            .replace("_", ".");
+                    String pattern =
+                            condMap.get("like").toString().replace("%", ".*").replace("_", ".");
                     mongoOp.put("$regex", pattern);
                     mongoOp.put("$options", "i");
                 }
@@ -406,7 +429,11 @@ public class MongoTranspiler {
                         String opStr = op.toString();
                         if (!KNOWN_OPS.contains(opStr)) {
                             throw new JsonQLTranspileException(
-                                "Unknown operator \"" + opStr + "\" for field \"" + field + "\"");
+                                    "Unknown operator \""
+                                            + opStr
+                                            + "\" for field \""
+                                            + field
+                                            + "\"");
                         }
                     }
                 }

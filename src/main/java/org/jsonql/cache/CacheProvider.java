@@ -3,6 +3,7 @@ package org.jsonql.cache;
 public interface CacheProvider {
     /**
      * Retrieve a value from the cache.
+     *
      * @param key The cache key.
      * @return The cached value, or null if not found or expired.
      */
@@ -10,6 +11,7 @@ public interface CacheProvider {
 
     /**
      * Store a value in the cache.
+     *
      * @param key The cache key.
      * @param value The value to store.
      * @param ttlSeconds Time-to-live in seconds.

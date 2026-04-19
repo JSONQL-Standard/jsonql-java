@@ -6,12 +6,13 @@ import java.util.Map;
 /**
  * Public HTTP/REST helper utilities for JSONQL adapters.
  *
- * <p>Provides the same helpers as Go's adapters/http package and
- * Python's adapters.mongo_base module:</p>
+ * <p>Provides the same helpers as Go's adapters/http package and Python's adapters.mongo_base
+ * module:
+ *
  * <ul>
- *   <li>{@link #inferMutation} — derive JSONQL op from HTTP method + body</li>
- *   <li>{@link #getIdFromQuery} — extract ?id= from query parameters</li>
- *   <li>{@link #buildRestMutation} — build a JSONQL mutation from REST verbs</li>
+ *   <li>{@link #inferMutation} — derive JSONQL op from HTTP method + body
+ *   <li>{@link #getIdFromQuery} — extract ?id= from query parameters
+ *   <li>{@link #buildRestMutation} — build a JSONQL mutation from REST verbs
  * </ul>
  */
 public final class JsonQLHttpHelpers {
@@ -21,19 +22,20 @@ public final class JsonQLHttpHelpers {
     /**
      * Infer the JSONQL mutation operation from HTTP method and request body.
      *
-     * <p>Modifies the raw map in-place by setting "op", "data", "patch", "where" as needed.</p>
+     * <p>Modifies the raw map in-place by setting "op", "data", "patch", "where" as needed.
      *
-     * <p>Logic:</p>
+     * <p>Logic:
+     *
      * <ul>
-     *   <li>If "create", "update", or "delete" keys are already present, use them.</li>
-     *   <li>If "upsert" is present, extract accordingly.</li>
-     *   <li>POST + data → create; POST without data → query</li>
-     *   <li>PATCH/PUT → update</li>
-     *   <li>DELETE → delete</li>
+     *   <li>If "create", "update", or "delete" keys are already present, use them.
+     *   <li>If "upsert" is present, extract accordingly.
+     *   <li>POST + data → create; POST without data → query
+     *   <li>PATCH/PUT → update
+     *   <li>DELETE → delete
      * </ul>
      *
      * @param httpMethod HTTP method string (GET, POST, PUT, PATCH, DELETE)
-     * @param raw        the request body map (modified in-place)
+     * @param raw the request body map (modified in-place)
      */
     @SuppressWarnings("unchecked")
     public static void inferMutation(String httpMethod, Map<String, Object> raw) {
@@ -101,7 +103,7 @@ public final class JsonQLHttpHelpers {
     /**
      * Extract an "id" from HTTP query parameters.
      *
-     * <p>Attempts to parse as integer; if that fails, returns the raw string.</p>
+     * <p>Attempts to parse as integer; if that fails, returns the raw string.
      *
      * @param queryParams map of query parameter key-value pairs
      * @return the id value (Integer or String), or null if not present
@@ -120,56 +122,58 @@ public final class JsonQLHttpHelpers {
     /**
      * Build a JSONQL mutation map from REST-style HTTP verbs.
      *
-     * <p>Converts RESTful conventions to JSONQL operations:</p>
+     * <p>Converts RESTful conventions to JSONQL operations:
+     *
      * <ul>
-     *   <li>POST + body with "data" → create mutation</li>
-     *   <li>PATCH/PUT + body with "patch" + ?id= → update mutation</li>
-     *   <li>DELETE + ?id= → delete mutation</li>
-     *   <li>GET → returns null (queries handled separately)</li>
+     *   <li>POST + body with "data" → create mutation
+     *   <li>PATCH/PUT + body with "patch" + ?id= → update mutation
+     *   <li>DELETE + ?id= → delete mutation
+     *   <li>GET → returns null (queries handled separately)
      * </ul>
      *
-     * @param method      HTTP method
+     * @param method HTTP method
      * @param queryParams URL query parameters
-     * @param body        parsed request body
+     * @param body parsed request body
      * @return a JSONQL mutation map, or null for GET/query requests
      */
     @SuppressWarnings("unchecked")
     public static Map<String, Object> buildRestMutation(
-            String method,
-            Map<String, String> queryParams,
-            Map<String, Object> body) {
+            String method, Map<String, String> queryParams, Map<String, Object> body) {
 
         if (method == null) return null;
         if (body == null) body = new HashMap<>();
 
         switch (method.toUpperCase()) {
-            case "POST": {
-                if (body.containsKey("data")) {
+            case "POST":
+                {
+                    if (body.containsKey("data")) {
+                        Map<String, Object> mutation = new HashMap<>(body);
+                        mutation.put("op", "create");
+                        return mutation;
+                    }
+                    return null;
+                }
+            case "PUT":
+            case "PATCH":
+                {
+                    Object id = getIdFromQuery(queryParams);
                     Map<String, Object> mutation = new HashMap<>(body);
-                    mutation.put("op", "create");
+                    mutation.put("op", "update");
+                    if (id != null && !mutation.containsKey("where")) {
+                        mutation.put("where", Map.of("id", Map.of("eq", id)));
+                    }
                     return mutation;
                 }
-                return null;
-            }
-            case "PUT":
-            case "PATCH": {
-                Object id = getIdFromQuery(queryParams);
-                Map<String, Object> mutation = new HashMap<>(body);
-                mutation.put("op", "update");
-                if (id != null && !mutation.containsKey("where")) {
-                    mutation.put("where", Map.of("id", Map.of("eq", id)));
+            case "DELETE":
+                {
+                    Object id = getIdFromQuery(queryParams);
+                    Map<String, Object> mutation = new HashMap<>(body);
+                    mutation.put("op", "delete");
+                    if (id != null && !mutation.containsKey("where")) {
+                        mutation.put("where", Map.of("id", Map.of("eq", id)));
+                    }
+                    return mutation;
                 }
-                return mutation;
-            }
-            case "DELETE": {
-                Object id = getIdFromQuery(queryParams);
-                Map<String, Object> mutation = new HashMap<>(body);
-                mutation.put("op", "delete");
-                if (id != null && !mutation.containsKey("where")) {
-                    mutation.put("where", Map.of("id", Map.of("eq", id)));
-                }
-                return mutation;
-            }
             default:
                 return null;
         }

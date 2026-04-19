@@ -4,11 +4,12 @@ import java.util.*;
 
 /**
  * Static helper methods for constructing JSONQL WHERE conditions.
- * <p>
- * These helpers create condition maps compatible with the JSONQL query syntax.
- * Combine them with {@link QueryBuilder} and {@link MutationBuilder} for a fluent API.
- * <p>
- * Usage:
+ *
+ * <p>These helpers create condition maps compatible with the JSONQL query syntax. Combine them with
+ * {@link QueryBuilder} and {@link MutationBuilder} for a fluent API.
+ *
+ * <p>Usage:
+ *
  * <pre>
  * import static org.jsonql.Conditions.*;
  *

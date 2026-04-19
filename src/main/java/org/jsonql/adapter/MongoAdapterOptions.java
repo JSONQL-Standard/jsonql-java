@@ -3,9 +3,7 @@ package org.jsonql.adapter;
 import org.jsonql.JsonQLLogger;
 import org.jsonql.MongoDriverInterface;
 
-/**
- * Configuration for the MongoDB JSONQL adapter.
- */
+/** Configuration for the MongoDB JSONQL adapter. */
 public class MongoAdapterOptions {
     public MongoDriverInterface driver;
     public JsonQLLogger logger;

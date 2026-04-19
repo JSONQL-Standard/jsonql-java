@@ -1,15 +1,14 @@
 package org.jsonql.validator;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.jsonql.JsonQLValidationException;
-import org.jsonql.schema.JsonQLSchema;
-import org.jsonql.schema.JsonQLTableSchema;
 import org.jsonql.schema.JsonQLFieldSchema;
 import org.jsonql.schema.JsonQLRelation;
-
-import java.util.Map;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Set;
+import org.jsonql.schema.JsonQLSchema;
+import org.jsonql.schema.JsonQLTableSchema;
 
 public class JsonQLValidator {
     private final JsonQLSchema schema;
@@ -17,7 +16,7 @@ public class JsonQLValidator {
     private final boolean rejectUnknownFields;
 
     private static final Set<String> VALID_AGGREGATE_FUNCTIONS =
-        Set.of("count", "sum", "avg", "min", "max");
+            Set.of("count", "sum", "avg", "min", "max");
 
     public static class ValidationResult {
         public boolean valid;
@@ -43,8 +42,8 @@ public class JsonQLValidator {
     }
 
     /**
-     * @param rejectUnknownFields when true, fields not declared in the schema
-     *        are treated as validation errors instead of being silently allowed.
+     * @param rejectUnknownFields when true, fields not declared in the schema are treated as
+     *     validation errors instead of being silently allowed.
      */
     public JsonQLValidator(JsonQLSchema schema, String tableName, boolean rejectUnknownFields) {
         this.schema = schema;
@@ -58,7 +57,8 @@ public class JsonQLValidator {
 
         if (tableSchema == null) {
             // If table is not in schema, we assume it's allowed (no restrictions defined)
-            // unless we want strict schema enforcement. For now, matching standard behavior of "No Schema = No Rules".
+            // unless we want strict schema enforcement. For now, matching standard behavior of "No
+            // Schema = No Rules".
             return result;
         }
 
@@ -67,7 +67,8 @@ public class JsonQLValidator {
             List<?> fields = (List<?>) query.get("fields");
             if (fields.isEmpty()) {
                 result.valid = false;
-                result.errors.add(new ValidationError("INVALID_FIELDS", "Fields array cannot be empty"));
+                result.errors.add(
+                        new ValidationError("INVALID_FIELDS", "Fields array cannot be empty"));
                 return result;
             }
             for (Object f : fields) {
@@ -89,13 +90,17 @@ public class JsonQLValidator {
             Object sort = query.get("sort");
             if (sort instanceof List) {
                 for (Object s : (List<?>) sort) {
-                    String fieldName = s.toString().startsWith("-") ? s.toString().substring(1) : s.toString();
+                    String fieldName =
+                            s.toString().startsWith("-") ? s.toString().substring(1) : s.toString();
                     if (!validateField(fieldName, "sort", tableSchema, result)) {
                         result.valid = false;
                     }
                 }
             } else if (sort instanceof String) {
-                String fieldName = sort.toString().startsWith("-") ? sort.toString().substring(1) : sort.toString();
+                String fieldName =
+                        sort.toString().startsWith("-")
+                                ? sort.toString().substring(1)
+                                : sort.toString();
                 if (!validateField(fieldName, "sort", tableSchema, result)) {
                     result.valid = false;
                 }
@@ -124,8 +129,10 @@ public class JsonQLValidator {
                         // Validate function name
                         if (!VALID_AGGREGATE_FUNCTIONS.contains(func)) {
                             result.valid = false;
-                            result.errors.add(new ValidationError("UNKNOWN_AGGREGATE",
-                                "Unknown aggregate function: " + func));
+                            result.errors.add(
+                                    new ValidationError(
+                                            "UNKNOWN_AGGREGATE",
+                                            "Unknown aggregate function: " + func));
                             continue;
                         }
                         String fieldName = entry.getValue().toString();
@@ -161,14 +168,12 @@ public class JsonQLValidator {
     public void validateOrThrow(Map<String, Object> query) {
         ValidationResult result = validate(query);
         if (!result.valid && !result.errors.isEmpty()) {
-            throw new JsonQLValidationException(
-                result.errors.get(0).message,
-                result.errors
-            );
+            throw new JsonQLValidationException(result.errors.get(0).message, result.errors);
         }
     }
 
-    private void validateWhere(Map<?, ?> where, JsonQLTableSchema tableSchema, ValidationResult result) {
+    private void validateWhere(
+            Map<?, ?> where, JsonQLTableSchema tableSchema, ValidationResult result) {
         for (Map.Entry<?, ?> entry : where.entrySet()) {
             String key = entry.getKey().toString();
             if (key.equals("and") || key.equals("or")) {
@@ -186,13 +191,17 @@ public class JsonQLValidator {
         }
     }
 
-    private boolean validateField(String fieldName, String checkType, JsonQLTableSchema tableSchema, ValidationResult result) {
+    private boolean validateField(
+            String fieldName,
+            String checkType,
+            JsonQLTableSchema tableSchema,
+            ValidationResult result) {
         if (tableSchema.fields == null) return true;
         JsonQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
             if (rejectUnknownFields) {
-                result.errors.add(new ValidationError("UNKNOWN_FIELD",
-                    "Unknown field: " + fieldName));
+                result.errors.add(
+                        new ValidationError("UNKNOWN_FIELD", "Unknown field: " + fieldName));
                 return false;
             }
             return true;
@@ -241,14 +250,17 @@ public class JsonQLValidator {
             default:
                 // Generic aggregate check
                 if (checkType.matches("count|sum|avg|min|max")) {
-                     allowed = fieldSchema.allowAggregate != null ? fieldSchema.allowAggregate : true;
-                     errorMsg = "not allowed to be aggregated";
+                    allowed =
+                            fieldSchema.allowAggregate != null ? fieldSchema.allowAggregate : true;
+                    errorMsg = "not allowed to be aggregated";
                 }
                 break;
         }
 
         if (!allowed) {
-            result.errors.add(new ValidationError("FIELD_NOT_ALLOWED", "Field \"" + fieldName + "\" is " + errorMsg));
+            result.errors.add(
+                    new ValidationError(
+                            "FIELD_NOT_ALLOWED", "Field \"" + fieldName + "\" is " + errorMsg));
             return false;
         }
         return true;
@@ -261,16 +273,20 @@ public class JsonQLValidator {
         return field.allowAggregate != null ? field.allowAggregate : true;
     }
 
-    private boolean validateRelation(String relationName, JsonQLTableSchema tableSchema, ValidationResult result) {
+    private boolean validateRelation(
+            String relationName, JsonQLTableSchema tableSchema, ValidationResult result) {
         if (tableSchema.relations == null) return true;
         JsonQLRelation relation = tableSchema.relations.get(relationName);
         if (relation == null) {
-             // Unknown relation
-             return true;
+            // Unknown relation
+            return true;
         }
-        
+
         if (relation.allowInclude != null && !relation.allowInclude) {
-            result.errors.add(new ValidationError("RELATION_NOT_ALLOWED", "Relation \"" + relationName + "\" is not allowed to be included"));
+            result.errors.add(
+                    new ValidationError(
+                            "RELATION_NOT_ALLOWED",
+                            "Relation \"" + relationName + "\" is not allowed to be included"));
             return false;
         }
         return true;

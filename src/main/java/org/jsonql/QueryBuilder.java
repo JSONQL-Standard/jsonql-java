@@ -4,8 +4,9 @@ import java.util.*;
 
 /**
  * Fluent API for building JSONQL v1.0 queries programmatically.
- * <p>
- * Usage:
+ *
+ * <p>Usage:
+ *
  * <pre>
  * Map&lt;String, Object&gt; query = new QueryBuilder()
  *     .fields("id", "name", "email")
@@ -23,25 +24,19 @@ public class QueryBuilder {
         query.put("version", "1.0");
     }
 
-    /**
-     * Set the fields (projection) for the query.
-     */
+    /** Set the fields (projection) for the query. */
     public QueryBuilder fields(String... fields) {
         query.put("fields", Arrays.asList(fields));
         return this;
     }
 
-    /**
-     * Set the WHERE clause.
-     */
+    /** Set the WHERE clause. */
     public QueryBuilder where(Map<String, Object> where) {
         query.put("where", where);
         return this;
     }
 
-    /**
-     * Add an AND condition to the existing WHERE clause.
-     */
+    /** Add an AND condition to the existing WHERE clause. */
     @SuppressWarnings("unchecked")
     public QueryBuilder andWhere(Map<String, Object> condition) {
         Object existing = query.get("where");
@@ -63,9 +58,7 @@ public class QueryBuilder {
         return this;
     }
 
-    /**
-     * Add an OR condition to the existing WHERE clause.
-     */
+    /** Add an OR condition to the existing WHERE clause. */
     @SuppressWarnings("unchecked")
     public QueryBuilder orWhere(Map<String, Object> condition) {
         Object existing = query.get("where");
@@ -87,9 +80,7 @@ public class QueryBuilder {
         return this;
     }
 
-    /**
-     * Set the sort fields. Prefix with "-" for descending order.
-     */
+    /** Set the sort fields. Prefix with "-" for descending order. */
     public QueryBuilder sort(String... fields) {
         if (fields.length == 1) {
             query.put("sort", fields[0]);
@@ -99,41 +90,31 @@ public class QueryBuilder {
         return this;
     }
 
-    /**
-     * Set the maximum number of records to return.
-     */
+    /** Set the maximum number of records to return. */
     public QueryBuilder limit(int limit) {
         query.put("limit", limit);
         return this;
     }
 
-    /**
-     * Set the number of records to skip (offset).
-     */
+    /** Set the number of records to skip (offset). */
     public QueryBuilder skip(int skip) {
         query.put("skip", skip);
         return this;
     }
 
-    /**
-     * Set the GROUP BY fields.
-     */
+    /** Set the GROUP BY fields. */
     public QueryBuilder groupBy(String... fields) {
         query.put("groupBy", Arrays.asList(fields));
         return this;
     }
 
-    /**
-     * Set the aggregate definitions.
-     */
+    /** Set the aggregate definitions. */
     public QueryBuilder aggregate(Map<String, Object> aggregate) {
         query.put("aggregate", aggregate);
         return this;
     }
 
-    /**
-     * Set the include (eager loading) definitions.
-     */
+    /** Set the include (eager loading) definitions. */
     public QueryBuilder include(Object... relations) {
         if (relations.length == 1 && relations[0] instanceof Map) {
             query.put("include", relations[0]);
@@ -143,32 +124,24 @@ public class QueryBuilder {
         return this;
     }
 
-    /**
-     * Enable DISTINCT selection (SELECT DISTINCT).
-     */
+    /** Enable DISTINCT selection (SELECT DISTINCT). */
     public QueryBuilder distinct() {
         query.put("distinct", true);
         return this;
     }
 
-    /**
-     * Set DISTINCT on specific fields.
-     */
+    /** Set DISTINCT on specific fields. */
     public QueryBuilder distinct(String... fields) {
         query.put("distinct", Arrays.asList(fields));
         return this;
     }
 
-    /**
-     * Build and return the query as a Map.
-     */
+    /** Build and return the query as a Map. */
     public Map<String, Object> build() {
         return new LinkedHashMap<>(query);
     }
 
-    /**
-     * Reset the builder to a clean state.
-     */
+    /** Reset the builder to a clean state. */
     public QueryBuilder reset() {
         query.clear();
         query.put("version", "1.0");

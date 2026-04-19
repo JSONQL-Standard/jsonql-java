@@ -8,8 +8,8 @@ import java.util.*;
 public class ResultHydrator {
 
     /**
-     * Hydrates a ResultSet into a list of nested Maps.
-     * Assumes that columns for nested objects are aliased with double underscores (e.g., "author__name").
+     * Hydrates a ResultSet into a list of nested Maps. Assumes that columns for nested objects are
+     * aliased with double underscores (e.g., "author__name").
      */
     public List<Map<String, Object>> hydrate(ResultSet rs) throws SQLException {
         List<Map<String, Object>> results = new ArrayList<>();
@@ -45,7 +45,8 @@ public class ResultHydrator {
                 // keep original value if normalization fails
             }
         }
-        // Normalize whole-number doubles/floats to long (e.g., SQLite SUM returns 15.0 instead of 15)
+        // Normalize whole-number doubles/floats to long (e.g., SQLite SUM returns 15.0 instead of
+        // 15)
         if (value instanceof Double) {
             double d = (Double) value;
             if (d == Math.floor(d) && !Double.isInfinite(d) && Math.abs(d) <= Long.MAX_VALUE) {
@@ -70,7 +71,7 @@ public class ResultHydrator {
                 if (obj instanceof Map) {
                     parent = (Map<String, Object>) obj;
                 } else {
-                    // Conflict: field exists but is not a map. 
+                    // Conflict: field exists but is not a map.
                     // For now, overwrite or ignore? Let's assume structure is consistent.
                     // If it's null, we can initialize it.
                     if (obj == null) {
@@ -78,14 +79,14 @@ public class ResultHydrator {
                         row.put(parentKey, parent);
                     } else {
                         // This shouldn't happen in a well-formed query result
-                        return; 
+                        return;
                     }
                 }
             } else {
                 parent = new HashMap<>();
                 row.put(parentKey, parent);
             }
-            
+
             hydrateColumn(parent, childKey, value);
         } else {
             row.put(colName, value);

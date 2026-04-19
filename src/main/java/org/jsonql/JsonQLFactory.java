@@ -1,8 +1,6 @@
 package org.jsonql;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.jsonql.schema.JsonQLSchema;
-
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
@@ -10,14 +8,15 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import org.jsonql.schema.JsonQLSchema;
 
 /**
  * Factory helpers for creating JSONQL drivers and loading schemas.
  *
- * <p>Matches the Go SDK's factory.go and Python SDK's factory.py
- * for cross-language consistency.</p>
+ * <p>Matches the Go SDK's factory.go and Python SDK's factory.py for cross-language consistency.
  *
  * <h3>Usage:</h3>
+ *
  * <pre>
  * // Load schema
  * JsonQLSchema schema = JsonQLFactory.mustLoadSchema("schema.json");
@@ -43,7 +42,7 @@ public final class JsonQLFactory {
     /**
      * Return the value of an environment variable, or a fallback if unset or empty.
      *
-     * @param key      environment variable name
+     * @param key environment variable name
      * @param fallback default value
      * @return the environment value or fallback
      */
@@ -86,7 +85,8 @@ public final class JsonQLFactory {
             Map<String, Object> raw = MAPPER.readValue(new File(path), Map.class);
             return new JsonQLSchema(raw);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to load schema from " + path + ": " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to load schema from " + path + ": " + e.getMessage(), e);
         }
     }
 
@@ -95,8 +95,8 @@ public final class JsonQLFactory {
     /**
      * Create a JDBC-based JSONQL driver using environment variables for DSN.
      *
-     * <p>Reads {@code DB_DSN} for postgres/mysql/mssql and {@code DB_FILENAME}
-     * for sqlite. The DSN should be a JDBC URL (e.g. {@code jdbc:postgresql://host/db}).</p>
+     * <p>Reads {@code DB_DSN} for postgres/mysql/mssql and {@code DB_FILENAME} for sqlite. The DSN
+     * should be a JDBC URL (e.g. {@code jdbc:postgresql://host/db}).
      *
      * @param dialect one of "sqlite", "postgres", "mysql", "mssql"
      * @return a JsonQLDriver wrapping a JDBC connection
@@ -133,7 +133,7 @@ public final class JsonQLFactory {
      * Create a JDBC-based JSONQL driver with an explicit DSN.
      *
      * @param dialect the SQL dialect name
-     * @param dsn     a JDBC connection URL
+     * @param dsn a JDBC connection URL
      * @return a JsonQLDriver wrapping a JDBC connection
      * @throws RuntimeException if the connection cannot be established
      */
@@ -142,7 +142,8 @@ public final class JsonQLFactory {
             Connection conn = DriverManager.getConnection(dsn);
             return new JdbcDriver(dialect, dsn, conn);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to connect to " + dialect + " at " + dsn + ": " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to connect to " + dialect + " at " + dsn + ": " + e.getMessage(), e);
         }
     }
 
@@ -160,7 +161,8 @@ public final class JsonQLFactory {
         }
 
         @Override
-        public List<Map<String, Object>> query(String sql, List<Object> parameters) throws SQLException {
+        public List<Map<String, Object>> query(String sql, List<Object> parameters)
+                throws SQLException {
             ensureConnection();
             try (var stmt = connection.prepareStatement(sql)) {
                 for (int i = 0; i < parameters.size(); i++) {

@@ -1,20 +1,19 @@
 package org.jsonql.adapter;
 
-import org.jsonql.*;
-
 import java.util.*;
+import org.jsonql.*;
 
 /**
  * MongoDB adapter for JSONQL.
  *
- * <p>Uses {@link MongoTranspiler} to convert JSONQL queries into
- * {@link MongoResult} descriptors, then dispatches them to a
- * {@link MongoDriverInterface} for execution.</p>
+ * <p>Uses {@link MongoTranspiler} to convert JSONQL queries into {@link MongoResult} descriptors,
+ * then dispatches them to a {@link MongoDriverInterface} for execution.
  *
- * <p>Unlike the SQL-based {@link BaseHandler}, MongoDB results are
- * already document-shaped so no hydration step is needed.</p>
+ * <p>Unlike the SQL-based {@link BaseHandler}, MongoDB results are already document-shaped so no
+ * hydration step is needed.
  *
  * <h3>Usage:</h3>
+ *
  * <pre>
  * MongoDriverInterface driver = new MyMongoDriver("mongodb://localhost:27017", "mydb");
  * MongoAdapterOptions opts = new MongoAdapterOptions()
@@ -49,16 +48,14 @@ public class MongoAdapter {
     /**
      * Process a JSONQL request against MongoDB.
      *
-     * @param rawInput   parsed request body
+     * @param rawInput parsed request body
      * @param httpMethod HTTP method string
-     * @param pathName   URL path segment (collection name)
+     * @param pathName URL path segment (collection name)
      * @return result map with "meta" and "data" keys
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> processRequest(
-            Map<String, Object> rawInput,
-            String httpMethod,
-            String pathName) throws Exception {
+            Map<String, Object> rawInput, String httpMethod, String pathName) throws Exception {
 
         Map<String, Object> rawQuery = rawInput != null ? new HashMap<>(rawInput) : new HashMap<>();
 
@@ -108,33 +105,36 @@ public class MongoAdapter {
         Object resultData;
 
         switch (op.toLowerCase()) {
-            case "create": {
-                Map<String, Object> data = (Map<String, Object>) rawQuery.get("data");
-                if (data == null) {
-                    throw new JsonQLException("Missing 'data' for create operation");
+            case "create":
+                {
+                    Map<String, Object> data = (Map<String, Object>) rawQuery.get("data");
+                    if (data == null) {
+                        throw new JsonQLException("Missing 'data' for create operation");
+                    }
+                    MongoResult result = transpiler.transpileInsert(data, collection);
+                    resultData = options.driver.executeInsert(result);
+                    break;
                 }
-                MongoResult result = transpiler.transpileInsert(data, collection);
-                resultData = options.driver.executeInsert(result);
-                break;
-            }
-            case "update": {
-                Map<String, Object> patch = (Map<String, Object>) rawQuery.get("patch");
-                if (patch == null) {
-                    throw new JsonQLException("Missing 'patch' for update operation");
+            case "update":
+                {
+                    Map<String, Object> patch = (Map<String, Object>) rawQuery.get("patch");
+                    if (patch == null) {
+                        throw new JsonQLException("Missing 'patch' for update operation");
+                    }
+                    Map<String, Object> where = (Map<String, Object>) rawQuery.get("where");
+                    MongoResult result = transpiler.transpileUpdate(patch, where, collection);
+                    long count = options.driver.executeUpdate(result);
+                    resultData = Map.of("modifiedCount", count);
+                    break;
                 }
-                Map<String, Object> where = (Map<String, Object>) rawQuery.get("where");
-                MongoResult result = transpiler.transpileUpdate(patch, where, collection);
-                long count = options.driver.executeUpdate(result);
-                resultData = Map.of("modifiedCount", count);
-                break;
-            }
-            case "delete": {
-                Map<String, Object> where = (Map<String, Object>) rawQuery.get("where");
-                MongoResult result = transpiler.transpileDelete(where, collection);
-                long count = options.driver.executeDelete(result);
-                resultData = Map.of("deletedCount", count);
-                break;
-            }
+            case "delete":
+                {
+                    Map<String, Object> where = (Map<String, Object>) rawQuery.get("where");
+                    MongoResult result = transpiler.transpileDelete(where, collection);
+                    long count = options.driver.executeDelete(result);
+                    resultData = Map.of("deletedCount", count);
+                    break;
+                }
             default:
                 throw new JsonQLException("Unknown operation: " + op);
         }

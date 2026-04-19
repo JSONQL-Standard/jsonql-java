@@ -6,12 +6,11 @@ import java.util.Map;
 /**
  * Interface for MongoDB operations.
  *
- * <p>Unlike the SQL {@link JsonQLDriver}, this operates on
- * {@link MongoResult} descriptors rather than raw SQL strings.</p>
+ * <p>Unlike the SQL {@link JsonQLDriver}, this operates on {@link MongoResult} descriptors rather
+ * than raw SQL strings.
  *
- * <p>Implementations should dispatch based on
- * {@code result.operation} (find, aggregate, insertOne, updateMany,
- * deleteMany) to the appropriate MongoDB client method.</p>
+ * <p>Implementations should dispatch based on {@code result.operation} (find, aggregate, insertOne,
+ * updateMany, deleteMany) to the appropriate MongoDB client method.
  */
 public interface MongoDriverInterface {
 
@@ -55,8 +54,6 @@ public interface MongoDriverInterface {
      */
     long executeDelete(MongoResult result) throws Exception;
 
-    /**
-     * Close the MongoDB connection.
-     */
+    /** Close the MongoDB connection. */
     void close() throws Exception;
 }

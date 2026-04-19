@@ -1,21 +1,19 @@
 package org.jsonql;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.jsonql.schema.JsonQLSchema;
 import org.jsonql.validator.JsonQLValidator;
 
-import java.util.Map;
-import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
-
 public class JsonQLParser {
-    
+
     private JsonQLSchema schema;
     private String tableName;
     private JsonQLParserOptions options;
 
-    public JsonQLParser() {
-    }
+    public JsonQLParser() {}
 
     public JsonQLParser(JsonQLSchema schema, String tableName) {
         this.schema = schema;
@@ -64,7 +62,9 @@ public class JsonQLParser {
             int limit = (limitObj instanceof Number) ? ((Number) limitObj).intValue() : 0;
             if (limit > options.getMaxLimit()) {
                 throw new IllegalArgumentException(
-                    String.format("limit %d exceeds maximum allowed limit of %d", limit, options.getMaxLimit()));
+                        String.format(
+                                "limit %d exceeds maximum allowed limit of %d",
+                                limit, options.getMaxLimit()));
             }
         }
 
@@ -73,39 +73,46 @@ public class JsonQLParser {
             int depth = calculateIncludeDepth(query.get("include"));
             if (depth > options.getMaxNestingDepth()) {
                 throw new IllegalArgumentException(
-                    String.format("include nesting depth %d exceeds maximum allowed depth of %d",
-                        depth, options.getMaxNestingDepth()));
+                        String.format(
+                                "include nesting depth %d exceeds maximum allowed depth of %d",
+                                depth, options.getMaxNestingDepth()));
             }
         }
 
         // AllowedFields enforcement
-        if (options.getAllowedFields() != null && !options.getAllowedFields().isEmpty() && query.containsKey("fields")) {
+        if (options.getAllowedFields() != null
+                && !options.getAllowedFields().isEmpty()
+                && query.containsKey("fields")) {
             Set<String> allowed = new HashSet<>(options.getAllowedFields());
             List<?> fields = (List<?>) query.get("fields");
             for (Object f : fields) {
                 if (!allowed.contains(f.toString())) {
                     throw new IllegalArgumentException(
-                        String.format("field '%s' is not in the allowed fields list", f));
+                            String.format("field '%s' is not in the allowed fields list", f));
                 }
             }
         }
 
         // AllowedIncludes enforcement
-        if (options.getAllowedIncludes() != null && !options.getAllowedIncludes().isEmpty() && query.containsKey("include")) {
+        if (options.getAllowedIncludes() != null
+                && !options.getAllowedIncludes().isEmpty()
+                && query.containsKey("include")) {
             Set<String> allowed = new HashSet<>(options.getAllowedIncludes());
             Object include = query.get("include");
             if (include instanceof Map) {
                 for (Object key : ((Map<?, ?>) include).keySet()) {
                     if (!allowed.contains(key.toString())) {
                         throw new IllegalArgumentException(
-                            String.format("include '%s' is not in the allowed includes list", key));
+                                String.format(
+                                        "include '%s' is not in the allowed includes list", key));
                     }
                 }
             } else if (include instanceof List) {
                 for (Object item : (List<?>) include) {
                     if (!allowed.contains(item.toString())) {
                         throw new IllegalArgumentException(
-                            String.format("include '%s' is not in the allowed includes list", item));
+                                String.format(
+                                        "include '%s' is not in the allowed includes list", item));
                     }
                 }
             }
@@ -130,11 +137,28 @@ public class JsonQLParser {
         return maxDepth;
     }
 
-    private static final Set<String> ALLOWED_QUERY_KEYS = Set.of(
-        "version", "from", "where", "sort", "limit", "skip", "offset",
-        "fields", "include", "groupBy", "distinct", "aggregate",
-        "op", "data", "patch", "insert", "update", "delete", "upsert", "create"
-    );
+    private static final Set<String> ALLOWED_QUERY_KEYS =
+            Set.of(
+                    "version",
+                    "from",
+                    "where",
+                    "sort",
+                    "limit",
+                    "skip",
+                    "offset",
+                    "fields",
+                    "include",
+                    "groupBy",
+                    "distinct",
+                    "aggregate",
+                    "op",
+                    "data",
+                    "patch",
+                    "insert",
+                    "update",
+                    "delete",
+                    "upsert",
+                    "create");
 
     private void validateSyntax(Map<String, Object> query) {
         // Reject unknown keys
@@ -260,13 +284,15 @@ public class JsonQLParser {
                         for (Map.Entry<?, ?> fe : funcMap.entrySet()) {
                             String funcName = fe.getKey().toString();
                             if (!funcName.matches("count|avg|sum|min|max")) {
-                                throw new IllegalArgumentException("Unknown aggregation function: " + funcName);
+                                throw new IllegalArgumentException(
+                                        "Unknown aggregation function: " + funcName);
                             }
                             // Validate the field reference
                             if (fe.getValue() instanceof String) {
                                 String fieldRef = fe.getValue().toString();
                                 if (!isValidIdentifier(fieldRef)) {
-                                    throw new IllegalArgumentException("Invalid aggregate field: " + fieldRef);
+                                    throw new IllegalArgumentException(
+                                            "Invalid aggregate field: " + fieldRef);
                                 }
                             }
                         }
@@ -277,8 +303,8 @@ public class JsonQLParser {
     }
 
     /**
-     * Recursively validate that all field names in a WHERE clause are safe identifiers.
-     * Logical operators (and, or, not) are traversed; all other keys are checked.
+     * Recursively validate that all field names in a WHERE clause are safe identifiers. Logical
+     * operators (and, or, not) are traversed; all other keys are checked.
      */
     @SuppressWarnings("unchecked")
     private void validateWhereFieldNames(Object where) {
@@ -305,10 +331,10 @@ public class JsonQLParser {
     }
 
     /**
-     * SQL-safe identifier: a dot-separated path of simple identifiers.
-     * Each segment must start with a letter or underscore, followed by
-     * letters, digits, or underscores.  Dot notation supports JSON
-     * column paths like {@code properties.material}.
+     * SQL-safe identifier: a dot-separated path of simple identifiers. Each segment must start with
+     * a letter or underscore, followed by letters, digits, or underscores. Dot notation supports
+     * JSON column paths like {@code properties.material}.
+     *
      * <p>Matches {@code ^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$}.
      */
     static boolean isValidIdentifier(String id) {

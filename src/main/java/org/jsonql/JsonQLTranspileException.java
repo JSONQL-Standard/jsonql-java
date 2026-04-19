@@ -3,7 +3,7 @@ package org.jsonql;
 /**
  * Thrown when JSONQL-to-SQL transpilation fails.
  *
- * Common causes: invalid field names, unsupported operators, missing schema for includes.
+ * <p>Common causes: invalid field names, unsupported operators, missing schema for includes.
  */
 public class JsonQLTranspileException extends JsonQLException {
 

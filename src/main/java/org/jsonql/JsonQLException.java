@@ -3,11 +3,12 @@ package org.jsonql;
 /**
  * Base exception for all JSONQL errors.
  *
- * Subclasses provide more specific context:
+ * <p>Subclasses provide more specific context:
+ *
  * <ul>
- *   <li>{@link JsonQLValidationException} — schema/query validation failures</li>
- *   <li>{@link JsonQLTranspileException}  — SQL generation failures</li>
- *   <li>{@link JsonQLExecutionException}  — runtime / database failures</li>
+ *   <li>{@link JsonQLValidationException} — schema/query validation failures
+ *   <li>{@link JsonQLTranspileException} — SQL generation failures
+ *   <li>{@link JsonQLExecutionException} — runtime / database failures
  * </ul>
  */
 public class JsonQLException extends RuntimeException {

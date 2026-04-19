@@ -1,13 +1,11 @@
 package org.jsonql;
 
-import org.junit.Test;
 import static org.junit.Assert.*;
 
 import java.util.*;
+import org.junit.Test;
 
-/**
- * Unit tests for QueryBuilder — covers all builder methods including v1.1 features.
- */
+/** Unit tests for QueryBuilder — covers all builder methods including v1.1 features. */
 public class QueryBuilderTest {
 
     @Test
@@ -18,17 +16,16 @@ public class QueryBuilderTest {
 
     @Test
     public void testFields() {
-        Map<String, Object> query = new QueryBuilder()
-            .fields("id", "name", "email")
-            .build();
+        Map<String, Object> query = new QueryBuilder().fields("id", "name", "email").build();
         assertEquals(Arrays.asList("id", "name", "email"), query.get("fields"));
     }
 
     @Test
     public void testWhere() {
-        Map<String, Object> query = new QueryBuilder()
-            .where(Conditions.field("status", Conditions.eq("active")))
-            .build();
+        Map<String, Object> query =
+                new QueryBuilder()
+                        .where(Conditions.field("status", Conditions.eq("active")))
+                        .build();
         @SuppressWarnings("unchecked")
         Map<String, Object> where = (Map<String, Object>) query.get("where");
         assertNotNull(where);
@@ -39,10 +36,11 @@ public class QueryBuilderTest {
 
     @Test
     public void testAndWhere() {
-        Map<String, Object> query = new QueryBuilder()
-            .where(Conditions.field("status", Conditions.eq("active")))
-            .andWhere(Conditions.field("age", Conditions.gt(18)))
-            .build();
+        Map<String, Object> query =
+                new QueryBuilder()
+                        .where(Conditions.field("status", Conditions.eq("active")))
+                        .andWhere(Conditions.field("age", Conditions.gt(18)))
+                        .build();
         @SuppressWarnings("unchecked")
         Map<String, Object> where = (Map<String, Object>) query.get("where");
         assertNotNull(where.get("and"));
@@ -50,10 +48,11 @@ public class QueryBuilderTest {
 
     @Test
     public void testOrWhere() {
-        Map<String, Object> query = new QueryBuilder()
-            .where(Conditions.field("role", Conditions.eq("admin")))
-            .orWhere(Conditions.field("role", Conditions.eq("moderator")))
-            .build();
+        Map<String, Object> query =
+                new QueryBuilder()
+                        .where(Conditions.field("role", Conditions.eq("admin")))
+                        .orWhere(Conditions.field("role", Conditions.eq("moderator")))
+                        .build();
         @SuppressWarnings("unchecked")
         Map<String, Object> where = (Map<String, Object>) query.get("where");
         assertNotNull(where.get("or"));
@@ -61,35 +60,26 @@ public class QueryBuilderTest {
 
     @Test
     public void testSort() {
-        Map<String, Object> query = new QueryBuilder()
-            .sort("name", "-created_at")
-            .build();
+        Map<String, Object> query = new QueryBuilder().sort("name", "-created_at").build();
         assertEquals(Arrays.asList("name", "-created_at"), query.get("sort"));
     }
 
     @Test
     public void testSingleSort() {
-        Map<String, Object> query = new QueryBuilder()
-            .sort("name")
-            .build();
+        Map<String, Object> query = new QueryBuilder().sort("name").build();
         assertEquals("name", query.get("sort"));
     }
 
     @Test
     public void testLimitAndSkip() {
-        Map<String, Object> query = new QueryBuilder()
-            .limit(10)
-            .skip(20)
-            .build();
+        Map<String, Object> query = new QueryBuilder().limit(10).skip(20).build();
         assertEquals(10, query.get("limit"));
         assertEquals(20, query.get("skip"));
     }
 
     @Test
     public void testGroupBy() {
-        Map<String, Object> query = new QueryBuilder()
-            .groupBy("category", "status")
-            .build();
+        Map<String, Object> query = new QueryBuilder().groupBy("category", "status").build();
         assertEquals(Arrays.asList("category", "status"), query.get("groupBy"));
     }
 
@@ -99,9 +89,7 @@ public class QueryBuilderTest {
         agg.put("total", Collections.singletonMap("count", "id"));
         agg.put("avg_price", Collections.singletonMap("avg", "price"));
 
-        Map<String, Object> query = new QueryBuilder()
-            .aggregate(agg)
-            .build();
+        Map<String, Object> query = new QueryBuilder().aggregate(agg).build();
         assertEquals(agg, query.get("aggregate"));
     }
 
@@ -110,36 +98,26 @@ public class QueryBuilderTest {
         Map<String, Object> agg = new LinkedHashMap<>();
         agg.put("count", Collections.singletonMap("count", "id"));
 
-        Map<String, Object> query = new QueryBuilder()
-            .groupBy("category")
-            .aggregate(agg)
-            .build();
+        Map<String, Object> query = new QueryBuilder().groupBy("category").aggregate(agg).build();
         assertEquals(Arrays.asList("category"), query.get("groupBy"));
         assertNotNull(query.get("aggregate"));
     }
 
     @Test
     public void testDistinctBoolean() {
-        Map<String, Object> query = new QueryBuilder()
-            .fields("category")
-            .distinct()
-            .build();
+        Map<String, Object> query = new QueryBuilder().fields("category").distinct().build();
         assertEquals(true, query.get("distinct"));
     }
 
     @Test
     public void testDistinctFields() {
-        Map<String, Object> query = new QueryBuilder()
-            .distinct("category", "status")
-            .build();
+        Map<String, Object> query = new QueryBuilder().distinct("category", "status").build();
         assertEquals(Arrays.asList("category", "status"), query.get("distinct"));
     }
 
     @Test
     public void testIncludeArray() {
-        Map<String, Object> query = new QueryBuilder()
-            .include("posts", "comments")
-            .build();
+        Map<String, Object> query = new QueryBuilder().include("posts", "comments").build();
         assertEquals(Arrays.asList("posts", "comments"), query.get("include"));
     }
 
@@ -151,9 +129,7 @@ public class QueryBuilderTest {
         Map<String, Object> includeMap = new LinkedHashMap<>();
         includeMap.put("posts", postsInclude);
 
-        Map<String, Object> query = new QueryBuilder()
-            .include(includeMap)
-            .build();
+        Map<String, Object> query = new QueryBuilder().include(includeMap).build();
         assertTrue(query.get("include") instanceof Map);
     }
 
@@ -176,14 +152,15 @@ public class QueryBuilderTest {
         agg.put("total_orders", Collections.singletonMap("count", "id"));
         agg.put("total_revenue", Collections.singletonMap("sum", "total"));
 
-        Map<String, Object> query = new QueryBuilder()
-            .fields("status")
-            .where(Conditions.field("status", Conditions.in("completed", "pending")))
-            .groupBy("status")
-            .aggregate(agg)
-            .sort("status")
-            .limit(100)
-            .build();
+        Map<String, Object> query =
+                new QueryBuilder()
+                        .fields("status")
+                        .where(Conditions.field("status", Conditions.in("completed", "pending")))
+                        .groupBy("status")
+                        .aggregate(agg)
+                        .sort("status")
+                        .limit(100)
+                        .build();
 
         assertNotNull(query.get("fields"));
         assertNotNull(query.get("where"));

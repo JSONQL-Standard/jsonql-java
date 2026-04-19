@@ -5,8 +5,8 @@ import java.sql.SQLException;
 /**
  * Thrown when a JSONQL query fails at the database execution stage.
  *
- * Wraps the underlying {@link SQLException} while keeping a JSONQL-typed
- * exception hierarchy so callers can use a single catch block.
+ * <p>Wraps the underlying {@link SQLException} while keeping a JSONQL-typed exception hierarchy so
+ * callers can use a single catch block.
  */
 public class JsonQLExecutionException extends JsonQLException {
 

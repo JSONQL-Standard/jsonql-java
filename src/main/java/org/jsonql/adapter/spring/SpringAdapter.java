@@ -1,18 +1,17 @@
 package org.jsonql.adapter.spring;
 
+import java.util.HashMap;
+import java.util.Map;
 import org.jsonql.JsonQLException;
 import org.jsonql.JsonQLValidationException;
 import org.jsonql.adapter.AdapterOptions;
 import org.jsonql.adapter.BaseHandler;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Spring Boot / Spring MVC adapter for JSONQL.
  *
- * <p>Usage in a Spring Boot {@code @RestController}:</p>
+ * <p>Usage in a Spring Boot {@code @RestController}:
+ *
  * <pre>
  * &#64;RestController
  * &#64;RequestMapping("/api")
@@ -74,12 +73,12 @@ public class SpringAdapter {
     /**
      * Handle a JSONQL request and return a framework-neutral response.
      *
-     * <p>Returns a map that can be serialized by Spring's {@code ResponseEntity}
-     * or {@code @ResponseBody}.</p>
+     * <p>Returns a map that can be serialized by Spring's {@code ResponseEntity} or
+     * {@code @ResponseBody}.
      *
-     * @param body       Parsed request body
+     * @param body Parsed request body
      * @param httpMethod HTTP method string
-     * @param pathName   URL path segment (table name)
+     * @param pathName URL path segment (table name)
      * @return Map with "status", "body" keys suitable for building a ResponseEntity
      */
     public ResponseResult handle(Map<String, Object> body, String httpMethod, String pathName) {
@@ -107,9 +106,7 @@ public class SpringAdapter {
         }
     }
 
-    /**
-     * Simple result wrapper holding an HTTP status code and response body.
-     */
+    /** Simple result wrapper holding an HTTP status code and response body. */
     public static class ResponseResult {
         public final int status;
         public final Map<String, Object> body;

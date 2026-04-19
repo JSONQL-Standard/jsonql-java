@@ -5,11 +5,12 @@ import java.util.*;
 
 /**
  * Normalizes HTTP request components into a unified JSONQL query map.
- * <p>
- * This class handles the conversion from HTTP semantics (method, path, body, query params)
- * to the JSONQL query format expected by {@link JsonQLEngine#execute}.
- * <p>
- * Usage:
+ *
+ * <p>This class handles the conversion from HTTP semantics (method, path, body, query params) to
+ * the JSONQL query format expected by {@link JsonQLEngine#execute}.
+ *
+ * <p>Usage:
+ *
  * <pre>
  * NormalizedRequest req = JsonQLRequestNormalizer.normalize("POST", "users", body, params);
  * JsonQLResult result = engine.executeRequest(conn, req);
@@ -20,21 +21,42 @@ public class JsonQLRequestNormalizer {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /** JSONQL-reserved keywords — these are never treated as implicit WHERE conditions. */
-    public static final List<String> KEYWORDS = List.of(
-        "from", "fields", "include", "where", "sort", "limit", "skip",
-        "offset", "aggregate", "groupBy", "version", "distinct",
-        "data", "patch", "delete", "insert"
-    );
+    public static final List<String> KEYWORDS =
+            List.of(
+                    "from",
+                    "fields",
+                    "include",
+                    "where",
+                    "sort",
+                    "limit",
+                    "skip",
+                    "offset",
+                    "aggregate",
+                    "groupBy",
+                    "version",
+                    "distinct",
+                    "data",
+                    "patch",
+                    "delete",
+                    "insert");
 
     /** Query-specific keys that indicate a POST body is a query, not a mutation. */
-    private static final List<String> QUERY_KEYS = List.of(
-        "fields", "where", "aggregate", "sort", "include", "groupBy",
-        "distinct", "version", "from", "limit", "skip", "offset"
-    );
+    private static final List<String> QUERY_KEYS =
+            List.of(
+                    "fields",
+                    "where",
+                    "aggregate",
+                    "sort",
+                    "include",
+                    "groupBy",
+                    "distinct",
+                    "version",
+                    "from",
+                    "limit",
+                    "skip",
+                    "offset");
 
-    /**
-     * The result of normalizing an HTTP request into a JSONQL query.
-     */
+    /** The result of normalizing an HTTP request into a JSONQL query. */
     public static class NormalizedRequest {
         private final String table;
         private final Map<String, Object> query;
@@ -47,30 +69,43 @@ public class JsonQLRequestNormalizer {
         }
 
         /** The resolved table name (from URL path or {@code "from"} key). May be null. */
-        public String getTable() { return table; }
+        public String getTable() {
+            return table;
+        }
 
         /** The unified JSONQL query map, ready for {@link JsonQLEngine#execute}. */
-        public Map<String, Object> getQuery() { return query; }
+        public Map<String, Object> getQuery() {
+            return query;
+        }
 
         /** Whether this request is a query (SELECT) rather than a mutation. */
-        public boolean isQuery() { return queryPayload; }
+        public boolean isQuery() {
+            return queryPayload;
+        }
 
         /** Whether this request is a mutation (INSERT/UPDATE/DELETE). */
-        public boolean isMutation() { return !queryPayload; }
+        public boolean isMutation() {
+            return !queryPayload;
+        }
     }
 
     /**
      * Normalize HTTP request components into a unified JSONQL query.
      *
-     * @param httpMethod  HTTP method (GET, POST, PATCH, PUT, DELETE)
-     * @param pathTable   table name extracted from URL path (may be null)
-     * @param body        parsed JSON request body (may be null)
+     * @param httpMethod HTTP method (GET, POST, PATCH, PUT, DELETE)
+     * @param pathTable table name extracted from URL path (may be null)
+     * @param body parsed JSON request body (may be null)
      * @param queryParams flat map of query string parameters (may be null)
-     * @return a {@link NormalizedRequest} containing the resolved table, unified query, and operation type
-     * @throws IllegalArgumentException if the {@code q} / {@code query} parameter contains invalid JSON
+     * @return a {@link NormalizedRequest} containing the resolved table, unified query, and
+     *     operation type
+     * @throws IllegalArgumentException if the {@code q} / {@code query} parameter contains invalid
+     *     JSON
      */
-    public static NormalizedRequest normalize(String httpMethod, String pathTable,
-            Map<String, Object> body, Map<String, String> queryParams) {
+    public static NormalizedRequest normalize(
+            String httpMethod,
+            String pathTable,
+            Map<String, Object> body,
+            Map<String, String> queryParams) {
 
         Map<String, Object> query = new HashMap<>();
 
@@ -93,8 +128,8 @@ public class JsonQLRequestNormalizer {
 
     /**
      * Detect whether a request body represents a query (SELECT) vs a mutation.
-     * <p>
-     * A body is a query if it contains query-specific keys ({@code fields}, {@code where},
+     *
+     * <p>A body is a query if it contains query-specific keys ({@code fields}, {@code where},
      * {@code aggregate}, etc.) and does not contain mutation keys ({@code data}, {@code insert},
      * {@code patch}, {@code delete}).
      *
@@ -103,8 +138,10 @@ public class JsonQLRequestNormalizer {
      */
     public static boolean isQueryPayload(Map<String, Object> body) {
         if (body == null || body.isEmpty()) return false;
-        if (body.containsKey("data") || body.containsKey("insert") ||
-            body.containsKey("patch") || body.containsKey("delete")) {
+        if (body.containsKey("data")
+                || body.containsKey("insert")
+                || body.containsKey("patch")
+                || body.containsKey("delete")) {
             return false;
         }
         for (String key : QUERY_KEYS) {
@@ -115,7 +152,8 @@ public class JsonQLRequestNormalizer {
 
     // ── Internal helpers ────────────────────────────────────────────────────
 
-    private static void parseQueryParams(Map<String, String> queryParams, Map<String, Object> query) {
+    private static void parseQueryParams(
+            Map<String, String> queryParams, Map<String, Object> query) {
         // Handle JSON query string: ?query={...} or ?q={...}
         String jsonQuery = queryParams.get("query");
         if (jsonQuery == null) jsonQuery = queryParams.get("q");
@@ -219,7 +257,10 @@ public class JsonQLRequestNormalizer {
 
     private static Object coerceValue(String value) {
         if (value.matches("^-?\\d+$")) {
-            try { return Integer.parseInt(value); } catch (Exception ignored) {}
+            try {
+                return Integer.parseInt(value);
+            } catch (Exception ignored) {
+            }
         }
         return value;
     }

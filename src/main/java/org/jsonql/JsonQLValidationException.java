@@ -1,13 +1,13 @@
 package org.jsonql;
 
-import org.jsonql.validator.JsonQLValidator;
 import java.util.List;
+import org.jsonql.validator.JsonQLValidator;
 
 /**
  * Thrown when a JSONQL query or mutation fails schema validation.
  *
- * Carries the full list of {@link JsonQLValidator.ValidationError} instances
- * so callers can inspect individual problems.
+ * <p>Carries the full list of {@link JsonQLValidator.ValidationError} instances so callers can
+ * inspect individual problems.
  */
 public class JsonQLValidationException extends JsonQLException {
 

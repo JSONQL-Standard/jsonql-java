@@ -4,7 +4,7 @@
   <groupId>org.jsonql</groupId>
   <artifactId>jsonql-java</artifactId>
   <packaging>jar</packaging>
-  <version>1.0.0</version>
+  <version>1.1.0</version>
   <name>jsonql-java</name>
   <description>Official Java SDK for JSONQL — parse, validate, and execute JSONQL queries against SQL and MongoDB databases</description>
   <url>https://github.com/JSONQL-Standard/jsonql-java</url>

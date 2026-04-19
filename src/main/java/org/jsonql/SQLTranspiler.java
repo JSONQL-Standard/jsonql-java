@@ -43,9 +43,8 @@ public class SQLTranspiler {
     /**
      * Transpiles a typed {@link JsonQLQuery} to SQL.
      *
-     * <p>This overload accepts the strongly-typed query object produced by
-     * {@link JsonQLParser#parseToQuery(Map)} and converts it to a map for the
-     * core transpilation logic.
+     * <p>This overload accepts the strongly-typed query object produced by {@link
+     * JsonQLParser#parseToQuery(Map)} and converts it to a map for the core transpilation logic.
      *
      * @param query the typed query
      * @param tableName the target table

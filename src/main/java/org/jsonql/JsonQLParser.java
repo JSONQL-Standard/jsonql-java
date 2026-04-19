@@ -4,7 +4,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.jsonql.JsonQLValidationException;
 import org.jsonql.schema.JsonQLSchema;
 import org.jsonql.validator.JsonQLValidator;
 

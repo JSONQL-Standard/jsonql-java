@@ -7,8 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Typed representation of a JSONQL query, matching the structure used by the TypeScript, Python, and
- * Go SDKs.
+ * Typed representation of a JSONQL query, matching the structure used by the TypeScript, Python,
+ * and Go SDKs.
  *
  * <p>Construct from a raw map via {@link #fromMap(Map)}, or build programmatically and convert back
  * to a map via {@link #toMap()}.

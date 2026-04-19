@@ -129,9 +129,7 @@ public class ComplianceTest {
                                     + e.getMessage());
                 } else if (tc.errorCode != null) {
                     assertEquals(
-                            "Test " + tc.id + " error_code mismatch",
-                            tc.errorCode,
-                            e.getCode());
+                            "Test " + tc.id + " error_code mismatch", tc.errorCode, e.getCode());
                 }
             } catch (IllegalArgumentException e) {
                 if (expectValid) {

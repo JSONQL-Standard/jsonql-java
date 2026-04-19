@@ -146,14 +146,27 @@ public class SQLTranspiler {
 
         // 3. FROM clause
         StringBuilder sql = new StringBuilder();
-        String selectClause = String.join(", ", selectParts);
         sql.append("SELECT ");
         if (query.containsKey("distinct")) {
              Object d = query.get("distinct");
              if (Boolean.TRUE.equals(d) || "true".equalsIgnoreCase(String.valueOf(d))) {
                   sql.append("DISTINCT ");
+             } else if (d instanceof List) {
+                  // distinct: ["field1", "field2"] — use DISTINCT with specific fields in SELECT
+                  sql.append("DISTINCT ");
+                  if (selectParts.isEmpty() || (selectParts.size() == 1 && "*".equals(selectParts.get(0)))) {
+                       selectParts.clear();
+                       for (Object f : (List<?>) d) {
+                            String fieldStr = f.toString();
+                            if (!isValidIdentifier(fieldStr)) {
+                                 throw new IllegalArgumentException("Invalid distinct field: " + fieldStr);
+                            }
+                            selectParts.add(dialect.quoteIdentifier(tableName) + "." + dialect.quoteIdentifier(fieldStr));
+                       }
+                  }
              }
         }
+        String selectClause = String.join(", ", selectParts);
         sql.append(selectClause).append(" FROM ").append(dialect.quoteIdentifier(tableName));
         
         for (String join : joinParts) {
@@ -419,6 +432,38 @@ public class SQLTranspiler {
         return true;
     }
 
+    /**
+     * Check if a value is a field reference: {"field": "columnName"}
+     */
+    private boolean isFieldReference(Object value) {
+        if (!(value instanceof Map)) return false;
+        Map<?, ?> map = (Map<?, ?>) value;
+        return map.size() == 1 && map.containsKey("field") && map.get("field") instanceof String;
+    }
+
+    /**
+     * Resolve a field reference to a quoted column expression.
+     * Supports simple field names and "table.column" dot notation.
+     */
+    private String quoteFieldReference(Object value, String defaultTable) {
+        Map<?, ?> map = (Map<?, ?>) value;
+        String ref = (String) map.get("field");
+        if (ref == null || ref.isEmpty()) {
+            throw new IllegalArgumentException("Invalid field reference: empty");
+        }
+        if (ref.contains(".")) {
+            String[] parts = ref.split("\\.", 2);
+            if (!isValidIdentifier(parts[0]) || !isValidIdentifier(parts[1])) {
+                throw new IllegalArgumentException("Invalid field reference: " + ref);
+            }
+            return dialect.quoteIdentifier(parts[0]) + "." + dialect.quoteIdentifier(parts[1]);
+        }
+        if (!isValidIdentifier(ref)) {
+            throw new IllegalArgumentException("Invalid field reference: " + ref);
+        }
+        return dialect.quoteIdentifier(defaultTable) + "." + dialect.quoteIdentifier(ref);
+    }
+
     @SuppressWarnings("unchecked")
     private List<String> processWhere(Map<?, ?> whereMap, String tableAlias, List<Object> parameters) {
         List<String> conditions = new ArrayList<>();
@@ -482,7 +527,9 @@ public class SQLTranspiler {
                 Map<?, ?> condMap = (Map<?, ?>) cond;
                 if (condMap.containsKey("eq")) {
                     Object val = condMap.get("eq");
-                    if (val == null) {
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " = " + quoteFieldReference(val, tableAlias));
+                    } else if (val == null) {
                         conditions.add(quotedField + " IS NULL");
                     } else {
                         conditions.add(quotedField + " = " + dialect.getPlaceholder(parameters.size() + 1));
@@ -491,7 +538,9 @@ public class SQLTranspiler {
                 }
                 if (condMap.containsKey("ne") || condMap.containsKey("neq")) {
                     Object val = condMap.containsKey("ne") ? condMap.get("ne") : condMap.get("neq");
-                    if (val == null) {
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " != " + quoteFieldReference(val, tableAlias));
+                    } else if (val == null) {
                         conditions.add(quotedField + " IS NOT NULL");
                     } else {
                         conditions.add(quotedField + " != " + dialect.getPlaceholder(parameters.size() + 1));
@@ -499,20 +548,40 @@ public class SQLTranspiler {
                     }
                 }
                 if (condMap.containsKey("gt")) {
-                    conditions.add(quotedField + " > " + dialect.getPlaceholder(parameters.size() + 1));
-                    parameters.add(condMap.get("gt"));
+                    Object val = condMap.get("gt");
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " > " + quoteFieldReference(val, tableAlias));
+                    } else {
+                        conditions.add(quotedField + " > " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
                 }
                 if (condMap.containsKey("gte")) {
-                    conditions.add(quotedField + " >= " + dialect.getPlaceholder(parameters.size() + 1));
-                    parameters.add(condMap.get("gte"));
+                    Object val = condMap.get("gte");
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " >= " + quoteFieldReference(val, tableAlias));
+                    } else {
+                        conditions.add(quotedField + " >= " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
                 }
                 if (condMap.containsKey("lt")) {
-                    conditions.add(quotedField + " < " + dialect.getPlaceholder(parameters.size() + 1));
-                    parameters.add(condMap.get("lt"));
+                    Object val = condMap.get("lt");
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " < " + quoteFieldReference(val, tableAlias));
+                    } else {
+                        conditions.add(quotedField + " < " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
                 }
                 if (condMap.containsKey("lte")) {
-                    conditions.add(quotedField + " <= " + dialect.getPlaceholder(parameters.size() + 1));
-                    parameters.add(condMap.get("lte"));
+                    Object val = condMap.get("lte");
+                    if (isFieldReference(val)) {
+                        conditions.add(quotedField + " <= " + quoteFieldReference(val, tableAlias));
+                    } else {
+                        conditions.add(quotedField + " <= " + dialect.getPlaceholder(parameters.size() + 1));
+                        parameters.add(val);
+                    }
                 }
                 if (condMap.containsKey("like")) {
                     conditions.add(quotedField + " LIKE " + dialect.getPlaceholder(parameters.size() + 1));

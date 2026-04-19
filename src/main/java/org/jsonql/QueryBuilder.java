@@ -144,6 +144,22 @@ public class QueryBuilder {
     }
 
     /**
+     * Enable DISTINCT selection (SELECT DISTINCT).
+     */
+    public QueryBuilder distinct() {
+        query.put("distinct", true);
+        return this;
+    }
+
+    /**
+     * Set DISTINCT on specific fields.
+     */
+    public QueryBuilder distinct(String... fields) {
+        query.put("distinct", Arrays.asList(fields));
+        return this;
+    }
+
+    /**
      * Build and return the query as a Map.
      */
     public Map<String, Object> build() {

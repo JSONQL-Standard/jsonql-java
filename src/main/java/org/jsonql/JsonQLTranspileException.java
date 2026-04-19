@@ -8,10 +8,10 @@ package org.jsonql;
 public class JsonQLTranspileException extends JsonQLException {
 
     public JsonQLTranspileException(String message) {
-        super(message);
+        super(message, "TRANSPILE_ERROR");
     }
 
     public JsonQLTranspileException(String message, Throwable cause) {
-        super(message, cause);
+        super(message, "TRANSPILE_ERROR", cause);
     }
 }

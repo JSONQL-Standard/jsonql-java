@@ -196,7 +196,7 @@ public class JsonQLValidator {
             String checkType,
             JsonQLTableSchema tableSchema,
             ValidationResult result) {
-        if (tableSchema.fields == null) return true;
+        if (tableSchema.fields == null || tableSchema.fields.isEmpty()) return true;
         JsonQLFieldSchema fieldSchema = tableSchema.fields.get(fieldName);
         if (fieldSchema == null) {
             if (rejectUnknownFields) {

@@ -80,7 +80,8 @@ public class SpringMongoAdapter {
         } catch (IllegalArgumentException e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
-            return new SpringAdapter.ResponseResult(403, error);
+            error.put("error_code", "PARSE_ERROR");
+            return new SpringAdapter.ResponseResult(400, error);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Internal Server Error");

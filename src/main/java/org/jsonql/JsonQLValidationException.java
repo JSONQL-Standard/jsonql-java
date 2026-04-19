@@ -14,7 +14,8 @@ public class JsonQLValidationException extends JsonQLException {
     private final List<JsonQLValidator.ValidationError> errors;
 
     public JsonQLValidationException(String message, List<JsonQLValidator.ValidationError> errors) {
-        super(message);
+        super(message, errors != null && !errors.isEmpty() && errors.get(0).code != null
+                ? errors.get(0).code : "VALIDATION_ERROR");
         this.errors = errors;
     }
 

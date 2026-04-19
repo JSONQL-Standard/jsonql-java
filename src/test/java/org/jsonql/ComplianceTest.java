@@ -120,7 +120,7 @@ public class ComplianceTest {
                 if (!expectValid) {
                     fail("Test " + tc.id + " failed: Expected invalid query to throw exception");
                 }
-            } catch (IllegalArgumentException e) {
+            } catch (JsonQLValidationException e) {
                 if (expectValid) {
                     fail(
                             "Test "
@@ -128,9 +128,18 @@ public class ComplianceTest {
                                     + " failed: Expected valid query but got error: "
                                     + e.getMessage());
                 } else if (tc.errorCode != null) {
-                    // Check for error code if possible, but currently parser throws message
-                    // We can check if message contains the error code or related text
-                    // For now, just catching the exception is enough for "valid: false"
+                    assertEquals(
+                            "Test " + tc.id + " error_code mismatch",
+                            tc.errorCode,
+                            e.getCode());
+                }
+            } catch (IllegalArgumentException e) {
+                if (expectValid) {
+                    fail(
+                            "Test "
+                                    + tc.id
+                                    + " failed: Expected valid query but got error: "
+                                    + e.getMessage());
                 }
             }
         }

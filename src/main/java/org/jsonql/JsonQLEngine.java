@@ -244,7 +244,9 @@ public class JsonQLEngine {
 
         if (result == null) {
             if (!isMutation) {
-                result = transpiler.transpile(query, table, schema);
+                // Use typed JsonQLQuery for SELECT transpilation
+                JsonQLQuery typedQuery = JsonQLQuery.fromMap(query);
+                result = transpiler.transpile(typedQuery, table, schema);
             } else {
                 switch (mutationOp) {
                     case "delete":

@@ -73,7 +73,8 @@ public class JakartaMongoAdapter {
         } catch (IllegalArgumentException e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
-            return new JakartaAdapter.ResponseResult(403, error);
+            error.put("error_code", "PARSE_ERROR");
+            return new JakartaAdapter.ResponseResult(400, error);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Internal Server Error");

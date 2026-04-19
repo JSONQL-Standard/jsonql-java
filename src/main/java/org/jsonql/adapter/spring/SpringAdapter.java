@@ -88,16 +88,19 @@ public class SpringAdapter {
         } catch (JsonQLValidationException e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Validation Error");
+            error.put("error_code", e.getCode());
             error.put("details", e.getErrors());
             return new ResponseResult(400, error);
         } catch (JsonQLException e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
+            error.put("error_code", e.getCode());
             return new ResponseResult(400, error);
         } catch (IllegalArgumentException e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());
-            return new ResponseResult(403, error);
+            error.put("error_code", "PARSE_ERROR");
+            return new ResponseResult(400, error);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Internal Server Error");

@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jsonql.JsonQLValidationException;
 import org.jsonql.schema.JsonQLSchema;
 import org.jsonql.validator.JsonQLValidator;
 
@@ -49,9 +50,25 @@ public class JsonQLParser {
             JsonQLValidator.ValidationResult result = validator.validate(query);
             if (!result.valid) {
                 // For now, throw the first error
-                throw new IllegalArgumentException(result.errors.get(0).message);
+                throw new JsonQLValidationException(result.errors.get(0).message, result.errors);
             }
         }
+    }
+
+    /**
+     * Parses and validates the raw query map, returning a typed {@link JsonQLQuery}.
+     *
+     * <p>This is the preferred method for pipeline use: it validates the input (syntax, options,
+     * schema) and then converts it to a strongly-typed query object that can be passed to the
+     * transpiler.
+     *
+     * @param query the raw query map (e.g. from a parsed JSON body)
+     * @return a validated {@link JsonQLQuery} instance
+     * @throws IllegalArgumentException on validation failure
+     */
+    public JsonQLQuery parseToQuery(Map<String, Object> query) throws IllegalArgumentException {
+        parse(query);
+        return JsonQLQuery.fromMap(query);
     }
 
     @SuppressWarnings("unchecked")

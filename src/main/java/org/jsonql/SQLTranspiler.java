@@ -40,6 +40,33 @@ public class SQLTranspiler {
         return transpile(query, tableName, null);
     }
 
+    /**
+     * Transpiles a typed {@link JsonQLQuery} to SQL.
+     *
+     * <p>This overload accepts the strongly-typed query object produced by
+     * {@link JsonQLParser#parseToQuery(Map)} and converts it to a map for the
+     * core transpilation logic.
+     *
+     * @param query the typed query
+     * @param tableName the target table
+     * @return the transpilation result (SQL + parameters)
+     */
+    public TranspilationResult transpile(JsonQLQuery query, String tableName) {
+        return transpile(query.toMap(), tableName, null);
+    }
+
+    /**
+     * Transpiles a typed {@link JsonQLQuery} to SQL with schema for relation resolution.
+     *
+     * @param query the typed query
+     * @param tableName the target table
+     * @param schema optional schema for include/relation resolution
+     * @return the transpilation result (SQL + parameters)
+     */
+    public TranspilationResult transpile(JsonQLQuery query, String tableName, JsonQLSchema schema) {
+        return transpile(query.toMap(), tableName, schema);
+    }
+
     public TranspilationResult transpile(
             Map<String, Object> query, String tableName, JsonQLSchema schema) {
         if (!isValidIdentifier(tableName)) {

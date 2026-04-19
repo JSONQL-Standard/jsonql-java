@@ -11,11 +11,11 @@ import java.sql.SQLException;
 public class JsonQLExecutionException extends JsonQLException {
 
     public JsonQLExecutionException(String message) {
-        super(message);
+        super(message, "EXECUTION_ERROR");
     }
 
     public JsonQLExecutionException(String message, SQLException cause) {
-        super(message, cause);
+        super(message, "EXECUTION_ERROR", cause);
     }
 
     /** Return the underlying SQL exception, if any. */

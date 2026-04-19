@@ -63,8 +63,8 @@ public class BaseHandler {
         // 1. Infer mutation op from HTTP method
         inferMutation(httpMethod, rawQuery);
 
-        // 2. Parse (validate structure)
-        parser.parse(rawQuery);
+        // 2. Parse and produce typed query
+        JsonQLQuery typedQuery = parser.parseToQuery(rawQuery);
 
         // 3. Resolve table name
         String tableName = resolveTableName(rawQuery, pathName);
@@ -88,7 +88,7 @@ public class BaseHandler {
                 List<Map<String, Object>> data =
                         engine.execute(conn, tableName, rawQuery, options.lifecycle);
                 Map<String, Object> result = new HashMap<>();
-                result.put("meta", Map.of("query", rawQuery));
+                result.put("meta", Map.of("query", typedQuery.toMap()));
                 result.put("data", data);
                 return result;
             } finally {
@@ -101,7 +101,7 @@ public class BaseHandler {
 
         // No connection supplier — return parsed query only
         Map<String, Object> result = new HashMap<>();
-        result.put("meta", Map.of("query", rawQuery));
+        result.put("meta", Map.of("query", typedQuery.toMap()));
         result.put("data", Collections.emptyList());
         return result;
     }

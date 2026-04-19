@@ -214,6 +214,23 @@ public class MongoTranspilerTest {
         assertNotNull(result.pipeline);
     }
 
+    @Test
+    public void testDistinctWithArray() {
+        // distinct: ["category", "status"] — array of field names (not wrapped in {fields: ...})
+        Map<String, Object> query = new HashMap<>();
+        query.put("distinct", List.of("category", "status"));
+
+        MongoResult result = transpiler.transpile(query, "products");
+        assertEquals("aggregate", result.operation);
+        assertNotNull(result.pipeline);
+        boolean hasGroup = result.pipeline.stream()
+                .anyMatch(s -> s.containsKey("$group"));
+        assertTrue("Pipeline should have $group stage", hasGroup);
+        boolean hasProject = result.pipeline.stream()
+                .anyMatch(s -> s.containsKey("$project"));
+        assertTrue("Pipeline should have $project stage", hasProject);
+    }
+
     // ── Unknown operator validation ────────────────────────────────────
 
     @Test(expected = JsonQLTranspileException.class)

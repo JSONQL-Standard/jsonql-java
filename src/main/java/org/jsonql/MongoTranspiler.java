@@ -83,6 +83,8 @@ public class MongoTranspiler {
             hasDistinct = (Boolean) distinctObj;
         } else if (distinctObj instanceof Map) {
             hasDistinct = true;
+        } else if (distinctObj instanceof List) {
+            hasDistinct = true;
         }
 
         if (hasDistinct && !query.containsKey("aggregate")) {
@@ -96,7 +98,12 @@ public class MongoTranspiler {
 
             // Determine fields for distinct
             List<String> distinctFields = new ArrayList<>();
-            if (distinctObj instanceof Map) {
+            if (distinctObj instanceof List) {
+                // distinct: ["field1", "field2"] — array of field names
+                for (Object f : (List<?>) distinctObj) {
+                    distinctFields.add(f.toString());
+                }
+            } else if (distinctObj instanceof Map) {
                 Map<?, ?> dMap = (Map<?, ?>) distinctObj;
                 Object fieldsObj = dMap.get("fields");
                 if (fieldsObj instanceof List) {

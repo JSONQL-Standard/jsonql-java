@@ -407,19 +407,19 @@ public class MongoTranspiler {
                 if (condMap.containsKey("contains")) {
                     handled = true;
                     String s = condMap.get("contains").toString();
-                    mongoOp.put("$regex", Pattern.quote(s));
+                    mongoOp.put("$regex", escapeRegex(s));
                     mongoOp.put("$options", "i");
                 }
                 if (condMap.containsKey("starts")) {
                     handled = true;
                     String s = condMap.get("starts").toString();
-                    mongoOp.put("$regex", "^" + Pattern.quote(s));
+                    mongoOp.put("$regex", "^" + escapeRegex(s));
                     mongoOp.put("$options", "i");
                 }
                 if (condMap.containsKey("ends")) {
                     handled = true;
                     String s = condMap.get("ends").toString();
-                    mongoOp.put("$regex", Pattern.quote(s) + "$");
+                    mongoOp.put("$regex", escapeRegex(s) + "$");
                     mongoOp.put("$options", "i");
                 }
 
@@ -447,5 +447,22 @@ public class MongoTranspiler {
         }
 
         return filter;
+    }
+
+    /**
+     * Escape regex metacharacters so user input is matched literally in a MongoDB {@code $regex}
+     * (PCRE). Unlike {@link Pattern#quote}, this does not rely on {@code \Q...\E}, which MongoDB's
+     * PCRE engine does not honor.
+     */
+    private static String escapeRegex(String value) {
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (".^$*+?()[]{}|\\".indexOf(c) >= 0) {
+                sb.append('\\');
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }

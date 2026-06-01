@@ -133,6 +133,31 @@ public class MongoTranspilerTest {
         assertTrue("ends regex should end with $", regex.endsWith("$"));
     }
 
+    @Test
+    public void testContainsEscapesRegexMetacharacters() {
+        Map<String, Object> query =
+                Map.of(
+                        "fields", List.of("id"),
+                        "where", Map.of("name", Map.of("contains", "a.b*")));
+        MongoResult result = transpiler.transpile(query, "users");
+        Map<?, ?> nameFilter = (Map<?, ?>) result.filter.get("name");
+        // Metacharacters must be backslash-escaped (PCRE), not wrapped in \Q..\E
+        assertEquals("a\\.b\\*", nameFilter.get("$regex"));
+    }
+
+    @Test
+    public void testStartsEndsEscapeRegexMetacharacters() {
+        MongoResult starts =
+                transpiler.transpile(
+                        Map.of("where", Map.of("name", Map.of("starts", "a."))), "users");
+        assertEquals("^a\\.", ((Map<?, ?>) starts.filter.get("name")).get("$regex"));
+
+        MongoResult ends =
+                transpiler.transpile(
+                        Map.of("where", Map.of("name", Map.of("ends", ".b"))), "users");
+        assertEquals("\\.b$", ((Map<?, ?>) ends.filter.get("name")).get("$regex"));
+    }
+
     // ── Logical operators ──────────────────────────────────────────────
 
     @Test

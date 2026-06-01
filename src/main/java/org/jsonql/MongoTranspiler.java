@@ -450,9 +450,9 @@ public class MongoTranspiler {
     }
 
     /**
-     * Escape regex metacharacters so user input is matched literally in a
-     * MongoDB {@code $regex} (PCRE). Unlike {@link Pattern#quote}, this does
-     * not rely on {@code \Q...\E}, which MongoDB's PCRE engine does not honor.
+     * Escape regex metacharacters so user input is matched literally in a MongoDB {@code $regex}
+     * (PCRE). Unlike {@link Pattern#quote}, this does not rely on {@code \Q...\E}, which MongoDB's
+     * PCRE engine does not honor.
      */
     private static String escapeRegex(String value) {
         StringBuilder sb = new StringBuilder(value.length());
